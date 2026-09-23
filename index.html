@@ -17,10 +17,22 @@
   <section id="screen-home" class="screen active">
     <header class="hero">
       <h1>Badminton&nbsp;IQ</h1>
-      <p class="tagline">Doubles tactics, one position at a time. Read the picture, pick a numbered target, find out why it works.</p>
+      <p class="slogan">
+        <span class="slogan-line">Court time alone won’t teach you this.</span>
+        <span class="slogan-line">Learn the answer at home —</span>
+        <span class="slogan-line accent">arrive already knowing it.</span>
+      </p>
     </header>
 
-    <div class="stat-row" id="home-stats"></div>
+    <!-- top three, rotating -->
+    <div class="podium hidden" id="podium">
+      <div class="podium-head">
+        <span class="podium-title">Leaderboard</span>
+        <button class="linkish podium-all" id="podium-all">See all</button>
+      </div>
+      <div class="podium-stage" id="podium-stage"></div>
+      <div class="podium-dots" id="podium-dots"></div>
+    </div>
 
     <div class="card name-card hidden" id="name-card">
       <div class="card-body">
@@ -34,14 +46,15 @@
       <button class="btn hidden" id="home-name-change">Change</button>
     </div>
 
-    <h2 class="section-head">Chapters</h2>
-    <div id="chapter-list" class="card-list"></div>
+    <h2 class="section-head">Levels</h2>
+    <div id="level-list" class="level-list"></div>
+    <p class="unlock-note" id="unlock-note"></p>
 
     <h2 class="section-head">Drill</h2>
-    <div class="card drill-card">
+    <div class="card drill-card" id="drill-card">
       <div class="card-body">
         <h3>Decision drill</h3>
-        <p>Ten random positions, ten seconds each. This is the one that builds speed — in a real rally the decision is made before the shuttle gets to you. Only drill scores go on the leaderboard.</p>
+        <p id="drill-blurb">Ten random positions, ten seconds each. This is the one that builds speed — in a real rally the decision is made before the shuttle gets to you.</p>
         <label class="toggle">
           <input type="checkbox" id="drill-timer-toggle" checked>
           <span>Use the clock</span>
@@ -50,26 +63,15 @@
       <button class="btn primary" id="start-drill">Start drill</button>
     </div>
 
-    <div id="home-leaderboard-card" class="hidden">
-      <h2 class="section-head">Leaderboard</h2>
-      <div class="card">
-        <div class="card-body">
-          <h3>Who is reading it best</h3>
-          <p>Everyone's best decision drill, ranked. Post a score at the end of a drill.</p>
-        </div>
-        <button class="btn" id="open-leaderboard">View</button>
-      </div>
-    </div>
-
-    <h2 class="section-head">Before you start</h2>
-    <details class="explainer" open>
+    <h2 class="section-head">How this works</h2>
+    <details class="explainer">
       <summary>How to read the court</summary>
       <div class="explainer-body">
         <ul class="howto">
           <li><b>You are always at the bottom</b>, looking towards the net. Every instruction is written from that view, so "your left" means the left of the picture.</li>
           <li><b>Targets are numbered.</b> Tap a number to place your shot. The coaching afterwards refers to those same numbers, so there is never any confusion about whose left is whose.</li>
           <li><b>A solid ring is a place on the court. A dashed ring is a target on a person</b> — aiming at the hip they hold their racket next to, so they have no room to swing.</li>
-          <li><b>The white pip on a player shows their racket side.</b> Facing you, a right-hander's racket is on your left. That single fact moves several targets, which is what the last chapter is about.</li>
+          <li><b>The white pip on a player shows their racket side.</b> Facing you, a right-hander's racket is on your left. That single fact moves several targets, which is what the last level is about.</li>
         </ul>
       </div>
     </details>
@@ -77,6 +79,16 @@
       <summary>Words used on the way</summary>
       <div class="explainer-body">
         <dl class="glossary" id="glossary-list"></dl>
+      </div>
+    </details>
+    <details class="explainer">
+      <summary>How levels unlock</summary>
+      <div class="explainer-body">
+        <ul class="howto">
+          <li><b>Score 60% on a level to open the next one.</b> Your best result on each position counts, so replaying a level to fix the ones you missed moves you forward.</li>
+          <li><b>The decision drill opens once you have passed a level</b>, and only ever asks about levels you have unlocked.</li>
+          <li><b>Every finished run goes on the leaderboard</b> — one board per level, plus an overall table that adds your best run of each level together.</li>
+        </ul>
       </div>
     </details>
 

@@ -6,6 +6,15 @@ const STORE_KEY = 'biq_v1';
 const DRILL_SIZE = 10;
 const DRILL_SECONDS = 10;
 
+/* Score this much on a level to open the next one. Low enough that a player
+   who understands the ideas moves on, high enough that clicking through
+   without reading does not. */
+const PASS_PCT = 60;
+
+/* Typing this as your name opens every level. It sits in plain sight in a
+   public repository, so it is a convenience, not a secret. */
+const MASTER_KEY = 'deep mohan sehgal';
+
 const store = { scenarios: {}, drills: [] };
 
 function loadStore() {
@@ -38,9 +47,45 @@ const app = {
   timerId: null,
   timeLeft: 0,
   useTimer: true,
+  freshUnlocks: [],
+  podium: [],
+  podiumAt: 0,
+  podiumTimer: null,
 };
 
 const $ = (id) => document.getElementById(id);
+
+/* A level's standing comes from the best score ever recorded on each of its
+   positions, so replaying one to fix what you missed moves you forward. */
+function levels() {
+  let open = true;                      // the first level is always available
+  return CHAPTERS.map((c, i) => {
+    const list = scenariosOf(c.id);
+    const points = list.reduce((n, sc) => n + (store.scenarios[sc.id] || 0), 0);
+    const total = list.length * 3;
+    const pct = total ? Math.round((points / total) * 100) : 0;
+    const passed = pct >= PASS_PCT;
+    const unlocked = !!store.master || open;
+    if (!passed) open = false;
+    return { id: c.id, name: c.name, blurb: c.blurb, n: i + 1,
+             count: list.length, points: points, total: total,
+             pct: pct, passed: passed, unlocked: unlocked, started: points > 0 };
+  });
+}
+
+function levelById(id) {
+  return levels().find((l) => l.id === id);
+}
+
+/* The drill draws from every level, so it only offers what you have opened. */
+function drillPool() {
+  const open = levels().filter((l) => l.unlocked).map((l) => l.id);
+  return SCENARIOS.filter((sc) => open.indexOf(sc.chapter) !== -1).map((sc) => sc.id);
+}
+
+function drillReady() {
+  return !!store.master || levels().some((l) => l.passed);
+}
 
 /* Every run can go on a board, but only against runs of the same kind — a
    six-question untimed chapter and a ten-question timed drill are not the
@@ -66,45 +111,132 @@ function show(name) {
    HOME
    ============================================================ */
 function renderHome() {
-  const total = SCENARIOS.length;
-  const attempted = SCENARIOS.filter((s) => store.scenarios[s.id] !== undefined).length;
-  const mastered = SCENARIOS.filter((s) => store.scenarios[s.id] === 3).length;
-  const lastDrill = store.drills.length ? store.drills[store.drills.length - 1] : null;
-  const bestDrill = store.drills.reduce((m, d) => Math.max(m, d.pct), 0);
+  const lv = levels();
 
-  $('home-stats').innerHTML =
-    stat(mastered + ' / ' + total, 'Positions nailed') +
-    stat(attempted + ' / ' + total, 'Seen') +
-    stat(lastDrill ? lastDrill.pct + '%' : '—', 'Last drill') +
-    stat(store.drills.length ? bestDrill + '%' : '—', 'Best drill');
-
-  $('chapter-list').innerHTML = CHAPTERS.map((ch) => {
-    const list = scenariosOf(ch.id);
-    const done = list.filter((s) => store.scenarios[s.id] === 3).length;
-    const pct = list.length ? Math.round((done / list.length) * 100) : 0;
+  $('level-list').innerHTML = lv.map((l, i) => {
+    const state = !l.unlocked ? 'locked' : l.passed ? 'passed' : l.started ? 'started' : 'open';
+    const mark = !l.unlocked ? '&#128274;' : l.passed ? '&#10003;' : '&#9654;';
+    const meta = !l.unlocked
+      ? 'Score ' + PASS_PCT + '% on level ' + (l.n - 1) + ' to open this'
+      : l.started
+        ? l.points + ' of ' + l.total + ' points &middot; ' + l.pct + '%' + (l.passed ? ' &middot; passed' : '')
+        : l.count + ' positions';
     return '' +
-      '<div class="card">' +
-        '<div class="card-body">' +
-          '<h3>' + esc(ch.name) + '</h3>' +
-          '<p>' + esc(ch.blurb) + '</p>' +
-          '<div class="meter"><i style="width:' + pct + '%"></i></div>' +
-          '<div class="meter-label">' + done + ' of ' + list.length + ' nailed</div>' +
-        '</div>' +
-        '<button class="btn primary" data-chapter="' + ch.id + '">' + (done ? 'Replay' : 'Start') + '</button>' +
-      '</div>';
+      '<button class="level ' + state + (app.freshUnlocks.indexOf(l.id) !== -1 ? ' just-unlocked' : '') +
+        '" data-level="' + l.id + '" style="--i:' + i + '">' +
+        '<span class="level-num">' + l.n + '</span>' +
+        '<span class="level-body">' +
+          '<span class="level-name">' + esc(l.name) + '</span>' +
+          '<span class="level-blurb">' + esc(l.blurb) + '</span>' +
+          '<span class="meter"><i style="width:' + (l.unlocked ? l.pct : 0) + '%"></i></span>' +
+          '<span class="level-meta">' + meta + '</span>' +
+        '</span>' +
+        '<span class="level-state">' + mark + '</span>' +
+      '</button>';
   }).join('');
 
-  $('chapter-list').querySelectorAll('[data-chapter]').forEach((b) => {
-    b.addEventListener('click', () => startChapter(b.getAttribute('data-chapter')));
+  $('level-list').querySelectorAll('[data-level]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const id = b.getAttribute('data-level');
+      if (!levelById(id).unlocked) {
+        b.classList.remove('shake');
+        void b.offsetWidth;            // restart the animation on a repeat tap
+        b.classList.add('shake');
+        return;
+      }
+      startChapter(id);
+    });
   });
+  app.freshUnlocks = [];
+
+  $('unlock-note').textContent = store.master
+    ? 'Every level is open.'
+    : lv.some((l) => !l.unlocked)
+      ? 'Score ' + PASS_PCT + '% on a level to open the next one.'
+      : 'Every level open. Now make them automatic.';
+
+  const ready = drillReady();
+  $('drill-card').classList.toggle('locked-card', !ready);
+  $('start-drill').disabled = !ready;
+  $('drill-blurb').textContent = ready
+    ? 'Ten random positions from the levels you have opened, ten seconds each. This is the one that builds speed — in a real rally the decision is made before the shuttle gets to you.'
+    : 'Pass your first level to open the drill.';
 
   $('glossary-list').innerHTML = GLOSSARY.map((row) =>
     '<dt>' + esc(row[0]) + '</dt><dd>' + esc(row[1]) + '</dd>').join('');
 
-  // the leaderboard only exists once the project is configured
-  $('home-leaderboard-card').classList.toggle('hidden', !LB.enabled());
   $('name-card').classList.toggle('hidden', !LB.enabled());
   renderNameCard();
+  renderPodium();
+}
+
+/* ---------- the rotating top three ---------- */
+function stopPodium() {
+  if (app.podiumTimer) { clearInterval(app.podiumTimer); app.podiumTimer = null; }
+}
+
+async function renderPodium() {
+  const box = $('podium');
+  if (!LB.enabled()) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  try {
+    const rows = await LB.overall(3);
+    app.podium = rows;
+    stopPodium();
+    if (!rows.length) {
+      $('podium-stage').innerHTML =
+        '<div class="podium-slide in empty">Nobody on the board yet. ' +
+        'Finish a level and the top three appear here.</div>';
+      $('podium-dots').innerHTML = '';
+      return;
+    }
+    app.podiumAt = 0;
+    showPodiumSlide(0);
+    if (rows.length > 1) {
+      app.podiumTimer = setInterval(() => {
+        app.podiumAt = (app.podiumAt + 1) % app.podium.length;
+        showPodiumSlide(app.podiumAt);
+      }, 4200);
+    }
+  } catch (err) {
+    $('podium-stage').innerHTML = '<div class="podium-slide in empty">' + esc(err.message) + '</div>';
+    $('podium-dots').innerHTML = '';
+  }
+}
+
+const MEDALS = ['&#129351;', '&#129352;', '&#129353;'];
+
+function showPodiumSlide(i) {
+  const r = app.podium[i];
+  if (!r) return;
+  const me = LB.savedName().toLowerCase();
+  const mine = me && String(r.name).toLowerCase() === me;
+  const stage = $('podium-stage');
+  stage.innerHTML =
+    '<div class="podium-slide' + (mine ? ' mine' : '') + '">' +
+      '<span class="podium-medal">' + MEDALS[i] + '</span>' +
+      '<span class="podium-who">' +
+        '<b>' + esc(r.name) + (mine ? ' <i class="lb-tag">you</i>' : '') + '</b>' +
+        '<small>' + r.chapters + ' of ' + CHAPTERS.length + ' levels played</small>' +
+      '</span>' +
+      '<span class="podium-score"><b>' + r.points + '</b><small>points</small></span>' +
+    '</div>';
+  // force a reflow so the entry animation replays on every slide
+  const el = stage.firstElementChild;
+  void el.offsetWidth;
+  el.classList.add('in');
+
+  $('podium-dots').innerHTML = app.podium.map((_, j) =>
+    '<button class="podium-dot' + (j === i ? ' on' : '') + '" data-slide="' + j +
+    '" aria-label="Show number ' + (j + 1) + '"></button>').join('');
+  $('podium-dots').querySelectorAll('[data-slide]').forEach((d) => {
+    d.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stopPodium();
+      app.podiumAt = +d.getAttribute('data-slide');
+      showPodiumSlide(app.podiumAt);
+    });
+  });
 }
 
 /* Asking at the end of a run is a surprise. Ask once, up front, and from
@@ -125,7 +257,20 @@ function saveHomeName() {
   const name = LB.cleanName($('home-name').value);
   if (!name) { $('home-name').focus(); return; }
   LB.rememberName(name);
-  renderNameCard(false);
+  applyMasterKey(name);
+  renderHome();
+}
+
+/* Entering the full name opens every level, for practising a particular one
+   without grinding back to it. */
+function applyMasterKey(name) {
+  if (String(name).trim().toLowerCase() !== MASTER_KEY) return false;
+  if (!store.master) {
+    store.master = true;
+    saveStore();
+    Analytics.track('master_unlock');
+  }
+  return true;
 }
 function stat(big, label) {
   return '<div class="stat"><b>' + esc(big) + '</b><span>' + esc(label) + '</span></div>';
@@ -138,6 +283,7 @@ function esc(s) {
    SESSION SETUP
    ============================================================ */
 function startChapter(id) {
+  app.lockedBefore = levels().filter((l) => !l.unlocked).map((l) => l.id);
   app.mode = 'chapter';
   app.chapterId = id;
   app.useTimer = false;
@@ -150,7 +296,8 @@ function startDrill() {
   app.mode = 'drill';
   app.chapterId = null;
   app.useTimer = $('drill-timer-toggle').checked;
-  const pool = SCENARIOS.map((s) => s.id);
+  app.lockedBefore = levels().filter((l) => !l.unlocked).map((l) => l.id);
+  const pool = drillPool();
   shuffle(pool);
   app.queue = pool.slice(0, Math.min(DRILL_SIZE, pool.length));
   Analytics.track('drill_start', { timed: app.useTimer });
@@ -531,6 +678,9 @@ function finishSession() {
     }
   }
 
+  // anything this run opened gets picked out when the home screen redraws
+  app.freshUnlocks = (app.lockedBefore || []).filter((id) => levelById(id).unlocked);
+
   $('sum-again').textContent = app.mode === 'drill' ? 'Another drill' : 'Run it again';
   show('summary');
   renderHome();
@@ -551,6 +701,7 @@ function postScore() {
   const name = LB.cleanName($('post-name').value);
   if (!name) { setStatus('post-status', 'Enter a name first.', 'bad'); return; }
   LB.rememberName(name);
+  applyMasterKey(name);
   $('post-btn').disabled = true;
   $('post-name-row').classList.add('hidden');
   renderNameCard(false);
@@ -699,10 +850,11 @@ function init() {
   renderHome();
 
   $('start-drill').addEventListener('click', startDrill);
-  $('open-leaderboard').addEventListener('click', openLeaderboard);
   $('lb-back').addEventListener('click', () => show('home'));
   $('lb-refresh').addEventListener('click', renderLeaderboard);
   $('post-btn').addEventListener('click', postScore);
+  $('podium-all').addEventListener('click', openLeaderboard);
+  $('podium-stage').addEventListener('click', openLeaderboard);
   $('sum-view-board').addEventListener('click', openLeaderboard);
   $('home-name-save').addEventListener('click', saveHomeName);
   $('home-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveHomeName(); });
@@ -722,6 +874,7 @@ function init() {
     if (!confirm('Clear all progress and drill history?')) return;
     store.scenarios = {};
     store.drills = [];
+    store.master = false;
     saveStore();
     renderHome();
   });

@@ -20,9 +20,9 @@ Then open `http://localhost:8000/`. Opening `index.html` directly works too. Pro
 
 ## What is in it
 
-**23 positions across five chapters**
+**23 positions across five levels**
 
-| Chapter | What it drills |
+| Level | What it drills |
 | --- | --- |
 | Breaking the set defence | Where to attack a balanced side-by-side defence: the seam, the racket hip, the tramlines, and when to stop smashing |
 | Keeping the attack | The front player's job — the tight block, the flat counter, and where to stand while your partner smashes |
@@ -30,9 +30,20 @@ Then open `http://localhost:8000/`. Opening `index.html` directly works too. Pro
 | Shape and rotation | Positioning questions: splitting on the lift, arriving balanced, following a block in, and moving as a pair |
 | Reading the hands | How a left-hander moves every target, and the two mixed-handed shapes worth recognising |
 
+**Levels**
+
+They open in order: score **60%** on a level and the next one unlocks. A level's standing comes
+from your best result on each of its positions, so replaying one to fix what you missed moves you
+forward rather than starting over. The decision drill opens once you have passed a level, and only
+ever asks about levels you have opened.
+
+*Back door:* entering **Deep Mohan Sehgal** as your name opens every level at once, for practising
+a particular one without grinding back to it. It is checked in the browser and this repository is
+public, so anyone who reads `app.js` can find it — it is a convenience, not a secret.
+
 **Two ways to work**
 
-- **Chapters** — untimed, in order, for learning the reads.
+- **Levels** — untimed, in order, for learning the reads.
 - **Decision drill** — ten random positions, ten seconds each. Knowing the answer and finding it
   in under ten seconds are different skills, and only the second one shows up in a match.
 
@@ -59,7 +70,7 @@ Each kind of run is ranked on its own board — one per chapter, plus the decisi
 six-question untimed chapter at 100% and a ten-question timed drill at 90% are not the same
 achievement, so pooling them into one ranking would be meaningless.
 
-**Overall** adds the chapters together: each player's best run of each chapter, summed. It is a
+**Overall** adds the levels together: each player's best run of each chapter, summed. It is a
 total rather than an average, so playing more chapters counts for more, and each row shows how
 many chapters that player has posted. The drill is excluded, since it draws its positions from
 every chapter and would double-count them. It is computed in the browser from the rows the board

@@ -38,13 +38,6 @@ body{
 }
 .tagline{margin:8px 0 0;color:var(--muted);max-width:52ch;}
 
-.stat-row{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 6px;}
-.stat{
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  padding:10px 14px;min-width:96px;flex:1 1 auto;
-}
-.stat b{display:block;font-size:22px;line-height:1.2;}
-.stat span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;}
 
 .section-head{
   font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
@@ -277,3 +270,120 @@ body{
 .lb-list.mini{margin-top:11px;}
 .lb-list.mini .lb-row{padding:8px 11px;font-size:14px;}
 .post-box .btn{margin-top:11px;}
+
+/* ============================================================
+   Home: slogan, podium, levels
+   ============================================================ */
+.slogan{
+  margin:12px 0 0;max-width:34ch;
+  font-family:Georgia,"Times New Roman",serif;font-style:italic;
+  font-size:clamp(17px,4.6vw,22px);line-height:1.42;color:#cfe0ea;
+}
+.slogan-line{display:block;opacity:0;transform:translateY(8px);
+  animation:slogan-in .65s cubic-bezier(.2,.7,.3,1) forwards;}
+.slogan-line:nth-child(1){animation-delay:.05s;}
+.slogan-line:nth-child(2){animation-delay:.22s;}
+.slogan-line:nth-child(3){animation-delay:.39s;}
+.slogan-line.accent{
+  background:linear-gradient(95deg,#4cc9f0,#7ee8c3);
+  -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:600;
+}
+@keyframes slogan-in{to{opacity:1;transform:none;}}
+
+/* ---------- top three ---------- */
+.podium{
+  margin:22px 0 4px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 14px 13px;overflow:hidden;
+}
+.podium-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
+.podium-title{
+  font-size:11.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted);font-weight:700;
+}
+.podium-all{font-size:12.5px;}
+.podium-stage{min-height:56px;cursor:pointer;}
+.podium-slide{
+  display:flex;align-items:center;gap:13px;
+  opacity:0;transform:translateX(26px);
+}
+.podium-slide.in{animation:slide-in .55s cubic-bezier(.2,.7,.3,1) forwards;}
+@keyframes slide-in{to{opacity:1;transform:none;}}
+.podium-slide.empty{
+  display:block;color:var(--muted);font-size:14px;line-height:1.5;transform:none;opacity:1;
+}
+.podium-medal{font-size:30px;line-height:1;filter:saturate(1.15);
+  animation:medal-pop .6s cubic-bezier(.2,1.5,.4,1) both;}
+@keyframes medal-pop{from{transform:scale(.4) rotate(-18deg);}to{transform:none;}}
+.podium-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.podium-who b{font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.podium-who small{color:var(--muted);font-size:12.5px;}
+.podium-score{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;}
+.podium-score b{font-size:24px;color:var(--accent);}
+.podium-score small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;}
+.podium-slide.mine .podium-who b{color:var(--accent);}
+.podium-dots{display:flex;gap:6px;justify-content:center;margin-top:10px;}
+.podium-dot{
+  width:7px;height:7px;padding:0;border-radius:50%;cursor:pointer;
+  background:var(--line);border:0;transition:background .25s,width .25s;
+}
+.podium-dot.on{background:var(--accent);width:18px;border-radius:4px;}
+
+/* ---------- levels ---------- */
+.level-list{display:grid;gap:10px;}
+.level{
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 15px;font:inherit;color:inherit;cursor:pointer;
+  opacity:0;transform:translateY(12px);
+  animation:level-in .5s cubic-bezier(.2,.7,.3,1) forwards;
+  animation-delay:calc(var(--i) * 70ms + 120ms);
+  transition:border-color .18s, transform .18s;
+}
+@keyframes level-in{to{opacity:1;transform:none;}}
+.level:hover{border-color:var(--accent);transform:translateY(-2px);}
+.level-num{
+  flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  font-weight:800;font-size:15px;background:var(--panel-2);color:var(--muted);
+  border:1px solid var(--line);
+}
+.level-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.level-name{font-weight:700;font-size:16.5px;}
+.level-blurb{color:var(--muted);font-size:13.5px;}
+.level-meta{color:var(--muted);font-size:12px;}
+.level .meter{margin-top:6px;height:5px;background:#0d151d;border-radius:3px;overflow:hidden;}
+.level .meter i{
+  display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--good));
+  transition:width .7s cubic-bezier(.2,.7,.3,1);
+}
+.level-state{font-size:17px;flex:none;opacity:.85;}
+
+.level.open .level-num,.level.started .level-num{color:var(--accent);border-color:var(--accent-dim);}
+.level.passed .level-num{background:var(--good);color:#062514;border-color:transparent;}
+.level.passed .level-state{color:var(--good);}
+.level.locked{opacity:.5;cursor:not-allowed;}
+.level.locked:hover{border-color:var(--line);transform:none;}
+.level.locked .level-blurb{filter:blur(2.5px);user-select:none;}
+
+.level.shake{animation:shake .4s;}
+@keyframes shake{
+  10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
+  30%,50%,70%{transform:translateX(-6px);} 40%,60%{transform:translateX(6px);}
+}
+.level.just-unlocked{animation:level-in .5s forwards, unlocked 1.5s .5s ease-out;}
+@keyframes unlocked{
+  0%{box-shadow:0 0 0 0 rgba(76,201,240,.55);}
+  60%{box-shadow:0 0 0 12px rgba(76,201,240,0);}
+  100%{box-shadow:0 0 0 0 rgba(76,201,240,0);}
+}
+
+.unlock-note{color:var(--muted);font-size:13px;margin:11px 0 0;}
+.locked-card{opacity:.55;}
+
+/* Motion is decoration here; anyone who asks for less should get the page
+   without any of it, fully legible and in its final position. */
+@media(prefers-reduced-motion:reduce){
+  .slogan-line,.level,.podium-slide,.podium-medal,.level.just-unlocked{
+    animation:none !important;opacity:1 !important;transform:none !important;
+  }
+  .level .meter i{transition:none;}
+  .level.shake{animation:none;}
+}
