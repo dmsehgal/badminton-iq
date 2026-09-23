@@ -100,6 +100,21 @@ trade for a board you share with friends; it would be the wrong trade for anythi
 
 The board shows one row per player — everyone's personal best, not every attempt.
 
+## Analytics
+
+Google Analytics 4, pointed at the same property as the rest of
+deepmohansehgal.com, so the trainer appears there as its own page path rather than as a separate
+property. The measurement ID lives in `config.js`; blank means nothing is loaded and no request is
+made, which is what a fork of this repo should use.
+
+This is one page, so a plain install would record a single pageview per visit and could never
+answer which chapters people actually play. `analytics.js` therefore also sends a `screen_view` on
+every screen change, plus `chapter_start`, `drill_start`, `drill_complete` (with the score and
+whether the clock was on), `chapter_complete` and `score_posted`.
+
+Every call is guarded and swallowed. An ad blocker making the tag missing at runtime is an
+ordinary case, not an error, and analytics can never break the trainer.
+
 ## How the tactics model works
 
 Everything lives in `tactics.js`, so scenarios and grading can be edited without touching engine code.
@@ -164,10 +179,11 @@ The grading model is built on these:
 ```
 index.html      screens, glossary and the principles reference
 style.css       dark theme, mobile-first
-config.js       Supabase project values for the leaderboard (empty = leaderboard off)
+config.js       Supabase project and GA4 measurement ID (empty = that feature off)
 tactics.js      court constants, shot vocabulary, scenarios, grader, validator
 court.js        top-down canvas renderer and the world/screen transform
 leaderboard.js  Supabase REST client, fails soft if unreachable
+analytics.js    GA4 loader and event helper, no-op when unconfigured
 app.js          screen flow, scoring, drill timer, localStorage
 ```
 

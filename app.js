@@ -47,6 +47,7 @@ function show(name) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
   $('screen-' + name).classList.add('active');
   window.scrollTo(0, 0);
+  Analytics.screen(name);
 }
 
 /* ============================================================
@@ -106,6 +107,7 @@ function startChapter(id) {
   app.chapterId = id;
   app.useTimer = false;
   app.queue = scenariosOf(id).map((s) => s.id);
+  Analytics.track('chapter_start', { chapter: id });
   beginSession();
 }
 
@@ -116,6 +118,7 @@ function startDrill() {
   const pool = SCENARIOS.map((s) => s.id);
   shuffle(pool);
   app.queue = pool.slice(0, Math.min(DRILL_SIZE, pool.length));
+  Analytics.track('drill_start', { timed: app.useTimer });
   beginSession();
 }
 
@@ -448,6 +451,12 @@ function finishSession() {
     saveStore();
   }
 
+  Analytics.track(app.mode === 'drill' ? 'drill_complete' : 'chapter_complete', {
+    chapter: app.chapterId || 'drill',
+    pct: pct,
+    timed: app.useTimer,
+  });
+
   $('sum-label').textContent = app.mode === 'drill'
     ? 'Decision drill'
     : CHAPTERS.find((c) => c.id === app.chapterId).name;
@@ -507,6 +516,7 @@ async function postScore() {
       total: app.pendingScore.total,
     });
     btn.textContent = 'Posted';
+    Analytics.track('score_posted', { pct: app.pendingScore.pct });
     setStatus('post-status', 'On the board. Go and see where you landed.', 'good');
     app.pendingScore = null;
   } catch (err) {
@@ -561,6 +571,7 @@ function next() {
 }
 
 function init() {
+  Analytics.init();
   loadStore();
   renderHome();
 
