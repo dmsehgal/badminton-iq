@@ -73,6 +73,7 @@ const LB = {
       method: 'POST',
       body: JSON.stringify({
         name: name,
+        mode: entry.mode || 'drill',
         pct: entry.pct,
         points: entry.points,
         total: entry.total,
@@ -80,16 +81,22 @@ const LB = {
     }, { 'Content-Type': 'application/json', Prefer: 'return=minimal' });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
+      // the most likely cause on an existing project is the schema predating
+      // per-board scores, so say that rather than echoing a Postgres error
+      if (/mode/i.test(detail) && /column|schema/i.test(detail)) {
+        throw new Error('The database is missing the "mode" column. Run the ALTER TABLE from the README, then try again.');
+      }
       throw new Error('Could not post the score (' + res.status + '). ' + detail.slice(0, 140));
     }
     this.rememberName(name);
     return true;
   },
 
-  async top(limit) {
+  async top(mode, limit) {
     if (!this.enabled()) return [];
     const url = this.base() + '/rest/v1/scores' +
       '?select=name,pct,points,total,created_at' +
+      '&mode=eq.' + encodeURIComponent(mode || 'drill') +
       '&order=pct.desc,points.desc,created_at.asc&limit=300';
     const res = await this.request(url, {});
     if (!res.ok) throw new Error('Could not load the leaderboard (' + res.status + ').');

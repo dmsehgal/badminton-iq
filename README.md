@@ -51,8 +51,12 @@ Drill scores can be posted to a shared board. It is off until `config.js` has a 
 in it; with the fields empty the trainer works exactly as it does otherwise and the board is
 hidden.
 
-Only decision-drill scores are eligible — same ten positions' worth of questions, same clock, so
-they are comparable. Chapter runs are untimed and replayable, so they are not.
+Every finished run can be posted, but each kind is ranked on its own board — the decision drill,
+and one per chapter. A six-question untimed chapter at 100% and a ten-question timed drill at 90%
+are not the same achievement, so mixing them into a single ranking would make it meaningless.
+
+The player is asked for their name once on the home screen rather than at the end of a run, and it
+is remembered on that device.
 
 **Setting it up**
 
@@ -63,6 +67,7 @@ they are comparable. Chapter runs are untimed and replayable, so they are not.
    create table public.scores (
      id         uuid primary key default gen_random_uuid(),
      name       text        not null check (char_length(trim(name)) between 1 and 24),
+     mode       text        not null default 'drill' check (char_length(mode) between 1 and 32),
      pct        int         not null check (pct between 0 and 100),
      points     int         not null check (points >= 0),
      total      int         not null check (total > 0),
@@ -83,11 +88,25 @@ they are comparable. Chapter runs are untimed and replayable, so they are not.
        and total between 1 and 100
      );
 
-   create index scores_rank_idx on public.scores (pct desc, points desc, created_at asc);
+   create index scores_rank_idx on public.scores (mode, pct desc, points desc, created_at asc);
    ```
+
+   The `mode` column names the board a score belongs to: `drill`, or a chapter id.
 
    There is deliberately no update or delete policy, so with row level security on, nobody can
    change or remove a posted score — only read the board and add to it.
+
+   **If you created the table before per-chapter boards existed**, add the column instead of
+   recreating it:
+
+   ```sql
+   alter table public.scores
+     add column mode text not null default 'drill'
+     check (char_length(mode) between 1 and 32);
+
+   drop index if exists scores_rank_idx;
+   create index scores_rank_idx on public.scores (mode, pct desc, points desc, created_at asc);
+   ```
 
 3. Put the project URL and the anon (publishable) key into `config.js` and push.
 

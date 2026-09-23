@@ -42,6 +42,18 @@ const app = {
 
 const $ = (id) => document.getElementById(id);
 
+/* Every run can go on a board, but only against runs of the same kind — a
+   six-question untimed chapter and a ten-question timed drill are not the
+   same achievement, so they are ranked separately. */
+function boards() {
+  return [{ id: 'drill', name: 'Decision drill' }]
+    .concat(CHAPTERS.map((c) => ({ id: c.id, name: c.name })));
+}
+function boardName(id) {
+  const b = boards().find((x) => x.id === id);
+  return b ? b.name : id;
+}
+
 /* ---------- screens ---------- */
 function show(name) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
@@ -91,6 +103,29 @@ function renderHome() {
 
   // the leaderboard only exists once the project is configured
   $('home-leaderboard-card').classList.toggle('hidden', !LB.enabled());
+  $('name-card').classList.toggle('hidden', !LB.enabled());
+  renderNameCard();
+}
+
+/* Asking at the end of a run is a surprise. Ask once, up front, and from
+   then on just show who is playing. */
+function renderNameCard(forceEdit) {
+  const name = LB.savedName();
+  const editing = forceEdit || !name;
+  $('name-heading').textContent = editing ? 'Who is playing?' : 'Playing as ' + name;
+  $('name-sub').textContent = editing
+    ? 'Used to put your scores on the leaderboard. Stored on this device only.'
+    : 'Your scores go on the board under this name.';
+  $('name-edit-row').classList.toggle('hidden', !editing);
+  $('home-name-change').classList.toggle('hidden', editing);
+  if (editing) $('home-name').value = name;
+}
+
+function saveHomeName() {
+  const name = LB.cleanName($('home-name').value);
+  if (!name) { $('home-name').focus(); return; }
+  LB.rememberName(name);
+  renderNameCard(false);
 }
 function stat(big, label) {
   return '<div class="stat"><b>' + esc(big) + '</b><span>' + esc(label) + '</span></div>';
@@ -475,11 +510,12 @@ function finishSession() {
     : '<h3>Worth re-reading</h3><div class="lesson"><b>Clean sweep</b>' +
       'Every position nailed. Run the decision drill with the clock on — knowing the answer and finding it in under ten seconds are different skills.</div>';
 
-  // only drill scores are comparable: same length, same clock, random positions
-  const canPost = app.mode === 'drill' && LB.enabled();
-  $('sum-post').classList.toggle('hidden', !canPost);
-  if (canPost) {
-    app.pendingScore = { pct: pct, points: got, total: max };
+  // every run can be posted, but each kind is ranked on its own board
+  const board = app.mode === 'drill' ? 'drill' : app.chapterId;
+  $('sum-post').classList.toggle('hidden', !LB.enabled());
+  if (LB.enabled()) {
+    app.pendingScore = { pct: pct, points: got, total: max, mode: board };
+    $('post-heading').textContent = 'Put it on the ' + boardName(board) + ' board';
     $('post-name').value = LB.savedName();
     $('post-btn').disabled = false;
     $('post-btn').textContent = 'Post score';
@@ -511,12 +547,15 @@ async function postScore() {
   try {
     await LB.submit({
       name: name,
+      mode: app.pendingScore.mode,
       pct: app.pendingScore.pct,
       points: app.pendingScore.points,
       total: app.pendingScore.total,
     });
     btn.textContent = 'Posted';
-    Analytics.track('score_posted', { pct: app.pendingScore.pct });
+    Analytics.track('score_posted', { pct: app.pendingScore.pct, board: app.pendingScore.mode });
+    app.lbBoard = app.pendingScore.mode;
+    renderNameCard(false);
     setStatus('post-status', 'On the board. Go and see where you landed.', 'good');
     app.pendingScore = null;
   } catch (err) {
@@ -527,17 +566,36 @@ async function postScore() {
 
 async function openLeaderboard() {
   show('leaderboard');
+  renderBoardTabs();
   await renderLeaderboard();
+}
+
+function renderBoardTabs() {
+  if (!app.lbBoard) app.lbBoard = 'drill';
+  $('lb-tabs').innerHTML = boards().map((b) =>
+    '<button class="lb-tab' + (b.id === app.lbBoard ? ' on' : '') + '" data-board="' +
+    b.id + '">' + esc(b.name) + '</button>').join('');
+  $('lb-tabs').querySelectorAll('[data-board]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      app.lbBoard = btn.getAttribute('data-board');
+      renderBoardTabs();
+      renderLeaderboard();
+    });
+  });
 }
 
 async function renderLeaderboard() {
   const list = $('lb-list');
+  const board = app.lbBoard || 'drill';
+  $('lb-caption').textContent = board === 'drill'
+    ? 'Best decision drill per player. Ten positions, ten seconds each, three points for the best answer.'
+    : 'Best run of “' + boardName(board) + '” per player.';
   setStatus('lb-status', 'Loading…');
   try {
-    const rows = await LB.top(20);
+    const rows = await LB.top(board, 20);
     if (!rows.length) {
       list.innerHTML = '';
-      setStatus('lb-status', 'Nobody has posted a score yet. Be the first.');
+      setStatus('lb-status', 'Nobody has posted a score on this board yet. Be the first.');
       return;
     }
     list.innerHTML = rows.map((r, i) =>
@@ -580,6 +638,9 @@ function init() {
   $('lb-back').addEventListener('click', () => show('home'));
   $('lb-refresh').addEventListener('click', renderLeaderboard);
   $('post-btn').addEventListener('click', postScore);
+  $('home-name-save').addEventListener('click', saveHomeName);
+  $('home-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveHomeName(); });
+  $('home-name-change').addEventListener('click', () => renderNameCard(true));
   $('post-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') postScore(); });
   $('open-principles').addEventListener('click', () => show('principles'));
   $('prin-back').addEventListener('click', () => show('home'));

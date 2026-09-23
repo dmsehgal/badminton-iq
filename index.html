@@ -22,6 +22,18 @@
 
     <div class="stat-row" id="home-stats"></div>
 
+    <div class="card name-card hidden" id="name-card">
+      <div class="card-body">
+        <h3 id="name-heading">Who is playing?</h3>
+        <p id="name-sub">Used to put your scores on the leaderboard. Stored on this device only.</p>
+        <div class="post-row" id="name-edit-row">
+          <input type="text" id="home-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
+          <button class="btn primary" id="home-name-save">Save</button>
+        </div>
+      </div>
+      <button class="btn hidden" id="home-name-change">Change</button>
+    </div>
+
     <h2 class="section-head">Chapters</h2>
     <div id="chapter-list" class="card-list"></div>
 
@@ -144,7 +156,7 @@
       <p class="sum-line" id="sum-line"></p>
 
       <div class="post-box hidden" id="sum-post">
-        <h4>Put it on the board</h4>
+        <h4 id="post-heading">Put it on the board</h4>
         <div class="post-row">
           <input type="text" id="post-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
           <button class="btn primary" id="post-btn">Post score</button>
@@ -170,7 +182,8 @@
       <button class="btn" id="lb-refresh">Refresh</button>
     </header>
     <div class="summary">
-      <p class="sum-line">Best decision drill per player. Ten positions, ten seconds each, three points for the best answer.</p>
+      <div class="lb-tabs" id="lb-tabs"></div>
+      <p class="sum-line" id="lb-caption"></p>
       <ol class="lb-list" id="lb-list"></ol>
       <p class="post-status" id="lb-status"></p>
     </div>

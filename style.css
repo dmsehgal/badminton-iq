@@ -252,3 +252,17 @@ body{
 .lb-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
 .lb-pct{font-weight:700;color:var(--accent);}
 .lb-pts{font-size:12.5px;color:var(--muted);min-width:46px;text-align:right;}
+
+/* ---------- who is playing ---------- */
+.name-card{align-items:flex-start;flex-wrap:wrap;}
+.name-card .post-row{margin-top:10px;}
+.name-card .post-row.hidden{display:none;}
+
+/* ---------- board selector ---------- */
+.lb-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;}
+.lb-tab{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:7px 13px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;
+}
+.lb-tab:hover{border-color:var(--accent);color:var(--text);}
+.lb-tab.on{background:var(--accent);color:#06202b;border-color:transparent;}
