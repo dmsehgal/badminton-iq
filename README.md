@@ -237,3 +237,11 @@ Actions*. Without it the workflow skips with a warning instead of failing. Fine-
 expire — when that happens the deploy starts failing and the token needs regenerating.
 
 Any other static host will serve the folder as-is, with no build step.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). Use it, change it, build on it; keep the copyright notice.
+
+If you fork this, clear both values in `config.js` first: the Supabase project so your scores do
+not land on someone else's leaderboard, and the GA4 measurement ID so your traffic is not reported
+into someone else's analytics. Empty means the feature is off and nothing is requested.
