@@ -69,6 +69,22 @@ jobs:
                 mkdir -p "$dest/$(dirname "$f")"
                 cp "$f" "$dest/$f"
               done
+
+          # GitHub Pages sends far-future caching headers for static assets and
+          # they cannot be configured, so a browser will happily keep serving
+          # yesterday's app.js. Stamping the commit onto each local asset URL
+          # makes every deploy a new URL, which a cache cannot answer from.
+          # Source files stay unstamped; only the published copy is rewritten.
+          ver="${GITHUB_SHA:0:7}"
+          sed -i -E "s@(src=\"|href=\")([A-Za-z0-9_.-]+\\.(js|css))\"@\\1\\2?v=$ver\"@g" "$dest/index.html"
+
+          stamped=$(grep -cE '(src|href)="[A-Za-z0-9_.-]+\.(js|css)\?v=' "$dest/index.html" || true)
+          if [ "$stamped" -eq 0 ]; then
+            echo "::error::No asset URLs were version-stamped. Caching would go stale — failing rather than shipping it."
+            exit 1
+          fi
+          echo "Version-stamped $stamped asset URLs with $ver."
+
           echo "Published files:"
           ls -1 "$dest"
 

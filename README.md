@@ -219,6 +219,18 @@ handles that: on every push to `main` it copies the tracked files into
 `dmsehgal.github.io/games/badminton-iq/` and pushes. This repo stays the single source of truth —
 never edit the copy in the site repo, it gets overwritten.
 
+**Cache busting.** GitHub Pages sends long-lived caching headers for static assets and does not
+let you configure them, so a browser will keep serving yesterday's `app.js` indefinitely. The
+workflow therefore stamps the commit onto every local asset URL in the published `index.html`
+(`app.js?v=fc425fb`), so each deploy is a set of URLs no cache can answer from. Source files are
+left unstamped; only the published copy is rewritten, and the step fails rather than shipping if
+the stamp does not apply.
+
+That leaves `index.html` itself, which GitHub Pages caches for about ten minutes and which cannot
+be changed. So a fresh deploy can take up to ten minutes to appear — but once it does, the HTML
+and every asset update together, instead of the page being stuck on stale code until someone
+clears their cache. A hard reload (Cmd/Ctrl+Shift+R) skips the wait.
+
 The workflow needs one repository secret, `SITE_DEPLOY_TOKEN`: a token with **Contents: read and
 write** on `dmsehgal/dmsehgal.github.io`, added under *Settings → Secrets and variables →
 Actions*. Without it the workflow skips with a warning instead of failing. Fine-grained tokens
