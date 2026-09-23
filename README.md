@@ -106,5 +106,17 @@ canvas at runtime.
 
 ## Deploying
 
-Any static host will serve it. For GitHub Pages: **Settings → Pages → Source: Deploy from a
-branch → `main` → `/ (root)`**.
+Live at **https://deepmohansehgal.com/games/badminton-iq/**.
+
+GitHub Pages serves a project repo at `/<repo-name>/` and that path is not configurable, so the
+`/games/` prefix has to come from files inside the site repo. `.github/workflows/deploy.yml`
+handles that: on every push to `main` it copies the tracked files into
+`dmsehgal.github.io/games/badminton-iq/` and pushes. This repo stays the single source of truth —
+never edit the copy in the site repo, it gets overwritten.
+
+The workflow needs one repository secret, `SITE_DEPLOY_TOKEN`: a token with **Contents: read and
+write** on `dmsehgal/dmsehgal.github.io`, added under *Settings → Secrets and variables →
+Actions*. Without it the workflow skips with a warning instead of failing. Fine-grained tokens
+expire — when that happens the deploy starts failing and the token needs regenerating.
+
+Any other static host will serve the folder as-is, with no build step.

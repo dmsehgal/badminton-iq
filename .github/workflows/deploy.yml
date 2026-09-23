@@ -1,0 +1,89 @@
+# Publishes this trainer to deepmohansehgal.com/games/badminton-iq/
+#
+# GitHub Pages serves a project repo at /<repo-name>/ and that path is not
+# configurable, so the /games/ prefix can only come from files that live in
+# the site repo. This job keeps that copy in step with this one: this repo
+# stays the single source of truth, the site repo just receives it.
+#
+# Setup — one secret, once:
+#   1. Create a token with Contents: read and write on dmsehgal/dmsehgal.github.io
+#      https://github.com/settings/personal-access-tokens/new
+#   2. Add it here as a repository secret named SITE_DEPLOY_TOKEN
+#      Settings -> Secrets and variables -> Actions -> New repository secret
+# Until that secret exists this workflow skips with a warning rather than failing.
+
+name: Deploy to deepmohansehgal.com
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the deploy token is configured
+        id: guard
+        env:
+          TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "${TOKEN:-}" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SITE_DEPLOY_TOKEN is not set, so nothing was deployed. Add the secret under Settings -> Secrets and variables -> Actions, then re-run this workflow."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the trainer
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: trainer
+
+      - name: Check out the site
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: dmsehgal/dmsehgal.github.io
+          token: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          path: site
+
+      - name: Copy the trainer into games/badminton-iq/
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          dest="$GITHUB_WORKSPACE/site/games/badminton-iq"
+          # rebuild the folder from scratch so a file deleted here disappears there
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          cd trainer
+          # every tracked file except this repo's own scaffolding, so new assets
+          # are picked up without anyone remembering to edit this workflow
+          git ls-files -z -- . ':!:.github' ':!:.gitignore' ':!:README.md' \
+            | while IFS= read -r -d '' f; do
+                mkdir -p "$dest/$(dirname "$f")"
+                cp "$f" "$dest/$f"
+              done
+          echo "Published files:"
+          ls -1 "$dest"
+
+      - name: Commit and push if anything changed
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: site
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add games/badminton-iq
+          if git diff --cached --quiet; then
+            echo "Site is already up to date, nothing to push."
+            exit 0
+          fi
+          git commit -m "Sync badminton-iq @ ${GITHUB_SHA:0:7}"
+          git push
+          echo "Pushed. Live at https://deepmohansehgal.com/games/badminton-iq/ once Pages rebuilds."
