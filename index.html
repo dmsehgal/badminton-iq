@@ -156,12 +156,14 @@
       <p class="sum-line" id="sum-line"></p>
 
       <div class="post-box hidden" id="sum-post">
-        <h4 id="post-heading">Put it on the board</h4>
-        <div class="post-row">
+        <h4 id="post-heading">On the board</h4>
+        <div class="post-row hidden" id="post-name-row">
           <input type="text" id="post-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
-          <button class="btn primary" id="post-btn">Post score</button>
+          <button class="btn primary" id="post-btn">Save and post</button>
         </div>
         <p class="post-status" id="post-status"></p>
+        <ol class="lb-list mini hidden" id="sum-board"></ol>
+        <button class="btn hidden" id="sum-view-board">Full leaderboard</button>
       </div>
 
       <h3>Positions</h3>

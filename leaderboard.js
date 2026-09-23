@@ -92,6 +92,50 @@ const LB = {
     return true;
   },
 
+  /* The overall standing: for each player, their best run of each chapter,
+     added up. Playing more chapters is meant to count for more, so this is a
+     sum rather than an average — and the drill is left out of it, since it
+     draws from every chapter and would double-count.
+
+     It is worked out here rather than in the database because the whole board
+     is a few hundred rows at most, and doing it client-side keeps the table
+     to the single insert-only shape the README documents. */
+  async overall(limit) {
+    if (!this.enabled()) return [];
+    const url = this.base() + '/rest/v1/scores' +
+      '?select=name,mode,points,total,created_at' +
+      '&mode=neq.drill&order=created_at.asc&limit=2000';
+    const res = await this.request(url, {});
+    if (!res.ok) throw new Error('Could not load the leaderboard (' + res.status + ').');
+    const rows = await res.json();
+
+    const players = new Map();
+    rows.forEach((r) => {
+      const key = String(r.name).toLowerCase();
+      if (!players.has(key)) players.set(key, { name: r.name, best: new Map(), first: r.created_at });
+      const p = players.get(key);
+      const prev = p.best.get(r.mode);
+      if (!prev || r.points > prev.points) p.best.set(r.mode, r);
+    });
+
+    return Array.from(players.values())
+      .map((p) => {
+        let points = 0, possible = 0;
+        p.best.forEach((r) => { points += r.points; possible += r.total; });
+        return {
+          name: p.name,
+          points: points,
+          possible: possible,
+          chapters: p.best.size,
+          pct: possible ? Math.round((points / possible) * 100) : 0,
+          created_at: p.first,
+        };
+      })
+      .sort((a, b) => (b.points - a.points) || (b.chapters - a.chapters) ||
+                      (new Date(a.created_at) - new Date(b.created_at)))
+      .slice(0, limit || 20);
+  },
+
   async top(mode, limit) {
     if (!this.enabled()) return [];
     const url = this.base() + '/rest/v1/scores' +

@@ -46,7 +46,7 @@ const $ = (id) => document.getElementById(id);
    six-question untimed chapter and a ten-question timed drill are not the
    same achievement, so they are ranked separately. */
 function boards() {
-  return [{ id: 'drill', name: 'Decision drill' }]
+  return [{ id: 'overall', name: 'Overall' }, { id: 'drill', name: 'Decision drill' }]
     .concat(CHAPTERS.map((c) => ({ id: c.id, name: c.name })));
 }
 function boardName(id) {
@@ -510,16 +510,25 @@ function finishSession() {
     : '<h3>Worth re-reading</h3><div class="lesson"><b>Clean sweep</b>' +
       'Every position nailed. Run the decision drill with the clock on — knowing the answer and finding it in under ten seconds are different skills.</div>';
 
-  // every run can be posted, but each kind is ranked on its own board
+  // every run goes on a board, and each kind is ranked separately
   const board = app.mode === 'drill' ? 'drill' : app.chapterId;
   $('sum-post').classList.toggle('hidden', !LB.enabled());
   if (LB.enabled()) {
     app.pendingScore = { pct: pct, points: got, total: max, mode: board };
-    $('post-heading').textContent = 'Put it on the ' + boardName(board) + ' board';
-    $('post-name').value = LB.savedName();
-    $('post-btn').disabled = false;
-    $('post-btn').textContent = 'Post score';
-    setStatus('post-status', '');
+    $('post-heading').textContent = boardName(board);
+    $('sum-board').classList.add('hidden');
+    $('sum-view-board').classList.add('hidden');
+    // posting needs a name; if we already have one there is nothing to ask
+    if (LB.savedName()) {
+      $('post-name-row').classList.add('hidden');
+      autoPost();
+    } else {
+      $('post-name-row').classList.remove('hidden');
+      $('post-name').value = '';
+      $('post-btn').disabled = false;
+      $('post-btn').textContent = 'Save and post';
+      setStatus('post-status', 'Enter a name to get on the board.');
+    }
   }
 
   $('sum-again').textContent = app.mode === 'drill' ? 'Another drill' : 'Run it again';
@@ -536,32 +545,85 @@ function setStatus(id, msg, kind) {
   el.className = 'post-status' + (kind ? ' ' + kind : '');
 }
 
-async function postScore() {
-  if (!app.pendingScore) return;
-  const btn = $('post-btn');
+/* Used when the player still has to give a name; otherwise autoPost runs
+   on its own as soon as the run ends. */
+function postScore() {
   const name = LB.cleanName($('post-name').value);
   if (!name) { setStatus('post-status', 'Enter a name first.', 'bad'); return; }
+  LB.rememberName(name);
+  $('post-btn').disabled = true;
+  $('post-name-row').classList.add('hidden');
+  renderNameCard(false);
+  autoPost();
+}
 
-  btn.disabled = true;
-  setStatus('post-status', 'Posting…');
+async function autoPost() {
+  const score = app.pendingScore;
+  if (!score) return;
+  const name = LB.savedName();
+  if (!name) return;
+
+  setStatus('post-status', 'Posting your score…');
   try {
     await LB.submit({
       name: name,
-      mode: app.pendingScore.mode,
-      pct: app.pendingScore.pct,
-      points: app.pendingScore.points,
-      total: app.pendingScore.total,
+      mode: score.mode,
+      pct: score.pct,
+      points: score.points,
+      total: score.total,
     });
-    btn.textContent = 'Posted';
-    Analytics.track('score_posted', { pct: app.pendingScore.pct, board: app.pendingScore.mode });
-    app.lbBoard = app.pendingScore.mode;
-    renderNameCard(false);
-    setStatus('post-status', 'On the board. Go and see where you landed.', 'good');
+    Analytics.track('score_posted', { pct: score.pct, board: score.mode });
+    app.lbBoard = score.mode;
     app.pendingScore = null;
+    await showSummaryBoard(score.mode, name);
   } catch (err) {
-    btn.disabled = false;
-    setStatus('post-status', err.message, 'bad');
+    // a failed post must not hide the run's result, so offer a retry in place
+    setStatus('post-status', err.message + ' ', 'bad');
+    $('post-name-row').classList.remove('hidden');
+    $('post-btn').disabled = false;
+    $('post-btn').textContent = 'Try again';
   }
+}
+
+/* The point of posting is seeing where you landed, so show it here rather
+   than telling the player to go and look. */
+async function showSummaryBoard(mode, name) {
+  const list = $('sum-board');
+  try {
+    const rows = await LB.top(mode, 50);
+    const me = rows.findIndex((r) => String(r.name).toLowerCase() === name.toLowerCase());
+    setStatus('post-status', me === -1
+      ? 'Posted as ' + name + '.'
+      : 'Posted as ' + name + ' — ' + ordinal(me + 1) + ' of ' + rows.length + ' on this board.', 'good');
+
+    // the top few, plus your own row if you finished outside them
+    const shown = rows.slice(0, 5);
+    if (me >= 5) shown.push(rows[me]);
+    list.innerHTML = shown.map((r) => {
+      const rank = rows.indexOf(r) + 1;
+      const mine = rows.indexOf(r) === me;
+      return lbRow(rank, r.name, r.pct + '%', r.points + '/' + r.total, mine);
+    }).join('');
+    list.classList.remove('hidden');
+    $('sum-view-board').classList.remove('hidden');
+  } catch (err) {
+    setStatus('post-status', 'Posted, but the board would not load: ' + err.message, 'bad');
+    $('sum-view-board').classList.remove('hidden');
+  }
+}
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function lbRow(rank, name, big, small, mine) {
+  return '<li class="lb-row' + (rank <= 3 ? ' lb-top' : '') + (mine ? ' lb-you' : '') + '">' +
+    '<span class="lb-rank">' + rank + '</span>' +
+    '<span class="lb-name">' + esc(name) + (mine ? ' <i class="lb-tag">you</i>' : '') + '</span>' +
+    '<span class="lb-pct">' + esc(big) + '</span>' +
+    '<span class="lb-pts">' + esc(small) + '</span>' +
+  '</li>';
 }
 
 async function openLeaderboard() {
@@ -586,25 +648,28 @@ function renderBoardTabs() {
 
 async function renderLeaderboard() {
   const list = $('lb-list');
-  const board = app.lbBoard || 'drill';
-  $('lb-caption').textContent = board === 'drill'
-    ? 'Best decision drill per player. Ten positions, ten seconds each, three points for the best answer.'
+  const board = app.lbBoard || 'overall';
+  const me = LB.savedName().toLowerCase();
+
+  $('lb-caption').textContent =
+    board === 'overall' ? 'Every chapter added together: each player’s best run of each chapter. Playing more chapters counts for more. The decision drill is not included, because it draws from all of them.'
+    : board === 'drill' ? 'Best decision drill per player. Ten positions, ten seconds each, three points for the best answer.'
     : 'Best run of “' + boardName(board) + '” per player.';
+
   setStatus('lb-status', 'Loading…');
   try {
-    const rows = await LB.top(board, 20);
+    const rows = board === 'overall' ? await LB.overall(20) : await LB.top(board, 20);
     if (!rows.length) {
       list.innerHTML = '';
       setStatus('lb-status', 'Nobody has posted a score on this board yet. Be the first.');
       return;
     }
-    list.innerHTML = rows.map((r, i) =>
-      '<li class="lb-row' + (i < 3 ? ' lb-top' : '') + '">' +
-        '<span class="lb-rank">' + (i + 1) + '</span>' +
-        '<span class="lb-name">' + esc(r.name) + '</span>' +
-        '<span class="lb-pct">' + r.pct + '%</span>' +
-        '<span class="lb-pts">' + r.points + '/' + r.total + '</span>' +
-      '</li>').join('');
+    list.innerHTML = rows.map((r, i) => {
+      const mine = me && String(r.name).toLowerCase() === me;
+      return board === 'overall'
+        ? lbRow(i + 1, r.name, r.points + ' pts', r.chapters + '/' + CHAPTERS.length + ' ch', mine)
+        : lbRow(i + 1, r.name, r.pct + '%', r.points + '/' + r.total, mine);
+    }).join('');
     setStatus('lb-status', '');
   } catch (err) {
     list.innerHTML = '';
@@ -638,6 +703,7 @@ function init() {
   $('lb-back').addEventListener('click', () => show('home'));
   $('lb-refresh').addEventListener('click', renderLeaderboard);
   $('post-btn').addEventListener('click', postScore);
+  $('sum-view-board').addEventListener('click', openLeaderboard);
   $('home-name-save').addEventListener('click', saveHomeName);
   $('home-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveHomeName(); });
   $('home-name-change').addEventListener('click', () => renderNameCard(true));

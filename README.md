@@ -51,12 +51,19 @@ Drill scores can be posted to a shared board. It is off until `config.js` has a 
 in it; with the fields empty the trainer works exactly as it does otherwise and the board is
 hidden.
 
-Every finished run can be posted, but each kind is ranked on its own board — the decision drill,
-and one per chapter. A six-question untimed chapter at 100% and a ten-question timed drill at 90%
-are not the same achievement, so mixing them into a single ranking would make it meaningless.
+Finishing a run posts it automatically and shows where it landed, rather than asking. The player
+is asked for their name once on the home screen; if they have not given one, the run's summary
+asks then and posts on save.
 
-The player is asked for their name once on the home screen rather than at the end of a run, and it
-is remembered on that device.
+Each kind of run is ranked on its own board — one per chapter, plus the decision drill. A
+six-question untimed chapter at 100% and a ten-question timed drill at 90% are not the same
+achievement, so pooling them into one ranking would be meaningless.
+
+**Overall** adds the chapters together: each player's best run of each chapter, summed. It is a
+total rather than an average, so playing more chapters counts for more, and each row shows how
+many chapters that player has posted. The drill is excluded, since it draws its positions from
+every chapter and would double-count them. It is computed in the browser from the rows the board
+already returns, which keeps the table to the single insert-only shape above.
 
 **Setting it up**
 
