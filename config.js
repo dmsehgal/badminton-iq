@@ -9,6 +9,8 @@
    allow only reading the board and adding a score — nothing else.
    ============================================================ */
 const SUPABASE = {
-  url: '',   // e.g. 'https://abcdefghijklm.supabase.co'  (no trailing slash)
-  key: '',   // the project's anon / publishable key
+  // The project base URL. Pasting the full REST endpoint is fine too —
+  // leaderboard.js trims a trailing slash or /rest/v1 either way.
+  url: 'https://arzawpptptpthcimhcpd.supabase.co',
+  key: 'sb_publishable_yTZNkmq_T-2zpqMKsNwHgA_qHBcWAPU',
 };

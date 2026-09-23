@@ -13,6 +13,12 @@ const LB = {
     return !!(SUPABASE && SUPABASE.url && SUPABASE.key);
   },
 
+  /* Accept the project URL or the full REST endpoint — the dashboard shows
+     the latter, and pasting it should not quietly produce a broken path. */
+  base() {
+    return String(SUPABASE.url || '').replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
+  },
+
   savedName() {
     try { return localStorage.getItem(LB_NAME_KEY) || ''; } catch (e) { return ''; }
   },
@@ -32,11 +38,30 @@ const LB = {
       .slice(0, LB_MAX_NAME);
   },
 
-  headers(extra) {
-    return Object.assign({
-      apikey: SUPABASE.key,
-      Authorization: 'Bearer ' + SUPABASE.key,
-    }, extra || {});
+  headers(extra, bare) {
+    const h = Object.assign({ apikey: SUPABASE.key }, extra || {});
+    // Legacy anon keys are JWTs and expect a Bearer header as well. The newer
+    // sb_publishable_ keys are resolved from apikey alone. Send both by
+    // default, and `bare` drops the Bearer for the retry below.
+    if (!bare) h.Authorization = 'Bearer ' + SUPABASE.key;
+    return h;
+  },
+
+  /* Sending the key as a Bearer token is what every Supabase client does, but
+     the two key formats are not documented to behave identically. Rather than
+     guess, try the usual way and fall back once if the gateway rejects the
+     credentials — so the board works under either convention. */
+  async request(url, init, extra) {
+    let res;
+    try {
+      res = await fetch(url, Object.assign({}, init, { headers: this.headers(extra) }));
+      if (res.status !== 401 && res.status !== 403) return res;
+      return await fetch(url, Object.assign({}, init, { headers: this.headers(extra, true) }));
+    } catch (e) {
+      // fetch only rejects for network-level failures, and the browser's own
+      // wording ("Failed to fetch") means nothing to a player
+      throw new Error('Could not reach the leaderboard. Check your connection and try again.');
+    }
   },
 
   async submit(entry) {
@@ -44,19 +69,15 @@ const LB = {
     const name = this.cleanName(entry.name);
     if (!name) throw new Error('Enter a name first.');
 
-    const res = await fetch(SUPABASE.url + '/rest/v1/scores', {
+    const res = await this.request(this.base() + '/rest/v1/scores', {
       method: 'POST',
-      headers: this.headers({
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      }),
       body: JSON.stringify({
         name: name,
         pct: entry.pct,
         points: entry.points,
         total: entry.total,
       }),
-    });
+    }, { 'Content-Type': 'application/json', Prefer: 'return=minimal' });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
       throw new Error('Could not post the score (' + res.status + '). ' + detail.slice(0, 140));
@@ -67,10 +88,10 @@ const LB = {
 
   async top(limit) {
     if (!this.enabled()) return [];
-    const url = SUPABASE.url + '/rest/v1/scores' +
+    const url = this.base() + '/rest/v1/scores' +
       '?select=name,pct,points,total,created_at' +
       '&order=pct.desc,points.desc,created_at.asc&limit=300';
-    const res = await fetch(url, { headers: this.headers() });
+    const res = await this.request(url, {});
     if (!res.ok) throw new Error('Could not load the leaderboard (' + res.status + ').');
     const rows = await res.json();
 
