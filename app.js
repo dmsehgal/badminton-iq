@@ -84,6 +84,12 @@ function renderHome() {
   $('chapter-list').querySelectorAll('[data-chapter]').forEach((b) => {
     b.addEventListener('click', () => startChapter(b.getAttribute('data-chapter')));
   });
+
+  $('glossary-list').innerHTML = GLOSSARY.map((row) =>
+    '<dt>' + esc(row[0]) + '</dt><dd>' + esc(row[1]) + '</dd>').join('');
+
+  // the leaderboard only exists once the project is configured
+  $('home-leaderboard-card').classList.toggle('hidden', !LB.enabled());
 }
 function stat(big, label) {
   return '<div class="stat"><b>' + esc(big) + '</b><span>' + esc(label) + '</span></div>';
@@ -144,7 +150,7 @@ function loadQuestion() {
   $('q-progress').textContent = (app.idx + 1) + ' / ' + app.queue.length;
   $('q-chapter').textContent = app.mode === 'drill' ? 'Drill' : ch.name;
   $('q-title').textContent = app.scn.title;
-  $('q-brief').textContent = app.scn.brief;
+  $('q-brief').textContent = fmt(app.scn.brief, app.scn);
   $('feedback').classList.add('hidden');
 
   renderShotButtons();
@@ -186,13 +192,13 @@ function updatePrompt() {
   $('answer-bar').classList.remove('hidden');
   if (app.scn.kind === 'position') {
     p.className = 'prompt hint';
-    p.textContent = 'Tap the court where you should be standing.';
+    p.textContent = 'Tap the number where you should be standing.';
   } else if (!app.pickedShot) {
     p.className = 'prompt';
-    p.textContent = 'Pick a shot, then tap the court to place it.';
+    p.textContent = 'Pick a shot, then tap a number on the court.';
   } else {
     p.className = 'prompt hint';
-    p.textContent = SHOTS[app.pickedShot].label + ' — now tap where you are putting it.';
+    p.textContent = SHOTS[app.pickedShot].label + ' — now tap the number you are aiming at.';
   }
 }
 
@@ -249,7 +255,7 @@ function answer(zone) {
 function flashPrompt() {
   const p = $('q-prompt');
   p.className = 'prompt hint';
-  p.textContent = 'Pick a shot first, then tap the court.';
+  p.textContent = 'Pick a shot first, then tap a number.';
 }
 
 function recordResult() {
@@ -258,7 +264,8 @@ function recordResult() {
     store.scenarios[app.scn.id] = app.result.score;
   }
   app.session.push({
-    id: app.scn.id, title: app.scn.title, score: app.result.score, key: app.scn.key,
+    id: app.scn.id, title: app.scn.title, score: app.result.score,
+    key: fmt(app.scn.key, app.scn),
   });
   saveStore();
 }
@@ -276,11 +283,10 @@ function showFeedback() {
   if (r.timedOut) {
     $('fb-pick').textContent = 'Out of time';
   } else {
-    const zone = app.scn.zones.find((z2) => z2.id === app.pickedZone);
-    const shotLabel = SHOTS[app.pickedShotFinal].label;
+    const target = zoneName(app.scn, app.pickedZone);
     $('fb-pick').textContent = app.scn.kind === 'position'
-      ? zone.label
-      : shotLabel + ' → ' + zone.label;
+      ? target
+      : SHOTS[app.pickedShotFinal].label + ' → ' + target;
   }
 
   $('fb-why').textContent = r.why;
@@ -293,13 +299,13 @@ function showFeedback() {
   } else {
     const b = bestAnswer(app.scn);
     const label = app.scn.kind === 'position'
-      ? b.zone.label
-      : SHOTS[b.shotId].label + ' → ' + b.zone.label;
+      ? zoneName(app.scn, b.zoneId)
+      : SHOTS[b.shotId].label + ' → ' + zoneName(app.scn, b.zoneId);
     bestBox.classList.remove('hidden');
     $('fb-best-text').textContent = label + '. ' + b.grade.why;
   }
 
-  $('fb-key').textContent = app.scn.key;
+  $('fb-key').textContent = fmt(app.scn.key, app.scn);
   $('next-btn').textContent = app.idx + 1 >= app.queue.length ? 'See the summary' : 'Next position';
 
   // on a narrow screen the verdict sits below the court — take the reader there
@@ -460,9 +466,82 @@ function finishSession() {
     : '<h3>Worth re-reading</h3><div class="lesson"><b>Clean sweep</b>' +
       'Every position nailed. Run the decision drill with the clock on — knowing the answer and finding it in under ten seconds are different skills.</div>';
 
+  // only drill scores are comparable: same length, same clock, random positions
+  const canPost = app.mode === 'drill' && LB.enabled();
+  $('sum-post').classList.toggle('hidden', !canPost);
+  if (canPost) {
+    app.pendingScore = { pct: pct, points: got, total: max };
+    $('post-name').value = LB.savedName();
+    $('post-btn').disabled = false;
+    $('post-btn').textContent = 'Post score';
+    setStatus('post-status', '');
+  }
+
   $('sum-again').textContent = app.mode === 'drill' ? 'Another drill' : 'Run it again';
   show('summary');
   renderHome();
+}
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+function setStatus(id, msg, kind) {
+  const el = $(id);
+  el.textContent = msg || '';
+  el.className = 'post-status' + (kind ? ' ' + kind : '');
+}
+
+async function postScore() {
+  if (!app.pendingScore) return;
+  const btn = $('post-btn');
+  const name = LB.cleanName($('post-name').value);
+  if (!name) { setStatus('post-status', 'Enter a name first.', 'bad'); return; }
+
+  btn.disabled = true;
+  setStatus('post-status', 'Posting…');
+  try {
+    await LB.submit({
+      name: name,
+      pct: app.pendingScore.pct,
+      points: app.pendingScore.points,
+      total: app.pendingScore.total,
+    });
+    btn.textContent = 'Posted';
+    setStatus('post-status', 'On the board. Go and see where you landed.', 'good');
+    app.pendingScore = null;
+  } catch (err) {
+    btn.disabled = false;
+    setStatus('post-status', err.message, 'bad');
+  }
+}
+
+async function openLeaderboard() {
+  show('leaderboard');
+  await renderLeaderboard();
+}
+
+async function renderLeaderboard() {
+  const list = $('lb-list');
+  setStatus('lb-status', 'Loading…');
+  try {
+    const rows = await LB.top(20);
+    if (!rows.length) {
+      list.innerHTML = '';
+      setStatus('lb-status', 'Nobody has posted a score yet. Be the first.');
+      return;
+    }
+    list.innerHTML = rows.map((r, i) =>
+      '<li class="lb-row' + (i < 3 ? ' lb-top' : '') + '">' +
+        '<span class="lb-rank">' + (i + 1) + '</span>' +
+        '<span class="lb-name">' + esc(r.name) + '</span>' +
+        '<span class="lb-pct">' + r.pct + '%</span>' +
+        '<span class="lb-pts">' + r.points + '/' + r.total + '</span>' +
+      '</li>').join('');
+    setStatus('lb-status', '');
+  } catch (err) {
+    list.innerHTML = '';
+    setStatus('lb-status', err.message, 'bad');
+  }
 }
 
 function verdictLine(pct) {
@@ -486,6 +565,11 @@ function init() {
   renderHome();
 
   $('start-drill').addEventListener('click', startDrill);
+  $('open-leaderboard').addEventListener('click', openLeaderboard);
+  $('lb-back').addEventListener('click', () => show('home'));
+  $('lb-refresh').addEventListener('click', renderLeaderboard);
+  $('post-btn').addEventListener('click', postScore);
+  $('post-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') postScore(); });
   $('open-principles').addEventListener('click', () => show('principles'));
   $('prin-back').addEventListener('click', () => show('home'));
   $('train-back').addEventListener('click', () => { stopTimer(); show('home'); renderHome(); });

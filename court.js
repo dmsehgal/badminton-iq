@@ -164,40 +164,55 @@ function drawZones(v, scn, state) {
   const { ctx } = v;
   scn.zones.forEach((zn) => {
     const px = v.sx(zn.x), py = v.sy(zn.y);
-    const r = v.m(zn.isBody ? 0.36 : 0.46);
+    const r = v.m(zn.isBody ? 0.40 : 0.48);
     const hot = state.hoverZone === zn.id;
     const pick = state.pickedZone === zn.id;
+    const live = hot || pick;
     const col = pick
       ? (state.result ? SCORE_COLOR[state.result.score] : C.you)
       : (hot ? C.you : C.zoneEdge);
 
     ctx.save();
-    // a target reticle, deliberately nothing like a player marker
+    // a body target belongs to a person, so tie it to them with a short line
+    if (zn.isBody && zn.ownerX !== undefined) {
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.globalAlpha = live ? 0.85 : 0.45;
+      ctx.lineWidth = Math.max(1, v.m(0.035));
+      ctx.setLineDash([v.m(0.08), v.m(0.08)]);
+      ctx.beginPath();
+      ctx.moveTo(v.sx(zn.ownerX), v.sy(zn.ownerY));
+      ctx.lineTo(px, py);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
     ctx.fillStyle = pick
-      ? hexA(state.result ? SCORE_COLOR[state.result.score] : C.you, 0.30)
-      : (hot ? hexA(C.you, 0.20) : 'rgba(255,255,255,0.045)');
+      ? hexA(state.result ? SCORE_COLOR[state.result.score] : C.you, 0.34)
+      : (hot ? hexA(C.you, 0.24) : 'rgba(8,18,26,0.62)');
     ctx.fill();
 
-    ctx.lineWidth = pick || hot ? Math.max(1.6, v.m(0.045)) : 1.1;
+    ctx.lineWidth = live ? Math.max(1.8, v.m(0.05)) : 1.3;
     ctx.strokeStyle = col;
-    ctx.globalAlpha = pick || hot ? 1 : 0.55;
-    ctx.setLineDash(zn.isBody ? [v.m(0.10), v.m(0.09)] : [v.m(0.22), v.m(0.16)]);
+    ctx.globalAlpha = live ? 1 : 0.7;
+    // a dashed ring for a target on a person, solid for a place on the court
+    ctx.setLineDash(zn.isBody ? [v.m(0.11), v.m(0.09)] : []);
     ctx.stroke();
 
-    // crosshair
+    // the number is the whole point: it is what the coaching text refers to,
+    // so nobody has to work out whose left is whose
     ctx.setLineDash([]);
-    ctx.globalAlpha = pick || hot ? 0.95 : 0.5;
-    ctx.lineWidth = 1.2;
-    const t = r * 0.42;
-    ctx.beginPath();
-    ctx.moveTo(px - t, py); ctx.lineTo(px + t, py);
-    ctx.moveTo(px, py - t); ctx.lineTo(px, py + t);
-    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.font = '700 ' + Math.max(11, Math.round(v.m(0.48))) + 'px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = live ? '#ffffff' : 'rgba(233,244,248,0.88)';
+    ctx.fillText(String(zn.n), px, py + v.m(0.02));
     ctx.restore();
 
-    if (hot || pick) drawZoneLabel(v, zn, px, py, r);
+    if (live) drawZoneLabel(v, zn, px, py, r);
   });
 }
 
@@ -205,7 +220,8 @@ function drawZoneLabel(v, zn, px, py, r) {
   const { ctx } = v;
   ctx.save();
   ctx.font = '600 ' + Math.max(10, Math.round(v.m(0.30))) + 'px ui-sans-serif, system-ui, sans-serif';
-  const w = ctx.measureText(zn.label).width + 12;
+  const text = zn.n + ' \u00b7 ' + zn.label;
+  const w = ctx.measureText(text).width + 12;
   const h = Math.max(16, v.m(0.44));
   let lx = px - w / 2;
   const ly = py - r - h - 4;
@@ -216,7 +232,7 @@ function drawZoneLabel(v, zn, px, py, r) {
   ctx.fillStyle = '#e9f4f8';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(zn.label, lx + w / 2, ly + h / 2 + 0.5);
+  ctx.fillText(text, lx + w / 2, ly + h / 2 + 0.5);
   ctx.restore();
 }
 

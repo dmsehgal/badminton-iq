@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f1720">
-<meta name="description" content="Badminton doubles tactics trainer — read the defence, pick the shot, build decision speed.">
+<meta name="description" content="Badminton doubles tactics trainer — read the defence, pick a numbered target, learn why.">
 <title>Badminton IQ</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1720'/%3E%3Ccircle cx='16' cy='11' r='4' fill='%23fff'/%3E%3Cpath d='M16 15 L10 27 M16 15 L22 27 M16 15 L16 28' stroke='%234cc9f0' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -17,7 +17,7 @@
   <section id="screen-home" class="screen active">
     <header class="hero">
       <h1>Badminton&nbsp;IQ</h1>
-      <p class="tagline">Doubles tactics, one position at a time. Read the defence, pick the shot, find out why.</p>
+      <p class="tagline">Doubles tactics, one position at a time. Read the picture, pick a numbered target, find out why it works.</p>
     </header>
 
     <div class="stat-row" id="home-stats"></div>
@@ -29,7 +29,7 @@
     <div class="card drill-card">
       <div class="card-body">
         <h3>Decision drill</h3>
-        <p>Ten random positions, ten seconds each. This is the one that builds speed — in a real rally the decision is made before the shuttle arrives.</p>
+        <p>Ten random positions, ten seconds each. This is the one that builds speed — in a real rally the decision is made before the shuttle gets to you. Only drill scores go on the leaderboard.</p>
         <label class="toggle">
           <input type="checkbox" id="drill-timer-toggle" checked>
           <span>Use the clock</span>
@@ -37,6 +37,36 @@
       </div>
       <button class="btn primary" id="start-drill">Start drill</button>
     </div>
+
+    <div id="home-leaderboard-card" class="hidden">
+      <h2 class="section-head">Leaderboard</h2>
+      <div class="card">
+        <div class="card-body">
+          <h3>Who is reading it best</h3>
+          <p>Everyone's best decision drill, ranked. Post a score at the end of a drill.</p>
+        </div>
+        <button class="btn" id="open-leaderboard">View</button>
+      </div>
+    </div>
+
+    <h2 class="section-head">Before you start</h2>
+    <details class="explainer" open>
+      <summary>How to read the court</summary>
+      <div class="explainer-body">
+        <ul class="howto">
+          <li><b>You are always at the bottom</b>, looking towards the net. Every instruction is written from that view, so "your left" means the left of the picture.</li>
+          <li><b>Targets are numbered.</b> Tap a number to place your shot. The coaching afterwards refers to those same numbers, so there is never any confusion about whose left is whose.</li>
+          <li><b>A solid ring is a place on the court. A dashed ring is a target on a person</b> — aiming at the hip they hold their racket next to, so they have no room to swing.</li>
+          <li><b>The white pip on a player shows their racket side.</b> Facing you, a right-hander's racket is on your left. That single fact moves several targets, which is what the last chapter is about.</li>
+        </ul>
+      </div>
+    </details>
+    <details class="explainer" id="glossary-box">
+      <summary>Words used on the way</summary>
+      <div class="explainer-body">
+        <dl class="glossary" id="glossary-list"></dl>
+      </div>
+    </details>
 
     <h2 class="section-head">Reference</h2>
     <div class="card">
@@ -78,8 +108,8 @@
           <span><i class="dot you"></i>You</span>
           <span><i class="dot partner"></i>Partner</span>
           <span><i class="dot opp"></i>Opponents</span>
-          <span><i class="dot target"></i>Targets</span>
-          <span class="legend-note">R / L = racket hand. The white pip shows the racket side.</span>
+          <span><i class="dot target"></i>Numbered targets</span>
+          <span class="legend-note">The white pip on a player is the side they hold the racket. A dashed target means aim at that person, not that spot.</span>
         </div>
       </div>
 
@@ -112,6 +142,16 @@
     <div class="summary">
       <div class="score-ring" id="sum-score"></div>
       <p class="sum-line" id="sum-line"></p>
+
+      <div class="post-box hidden" id="sum-post">
+        <h4>Put it on the board</h4>
+        <div class="post-row">
+          <input type="text" id="post-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
+          <button class="btn primary" id="post-btn">Post score</button>
+        </div>
+        <p class="post-status" id="post-status"></p>
+      </div>
+
       <h3>Positions</h3>
       <ul class="sum-list" id="sum-list"></ul>
       <div id="sum-lessons"></div>
@@ -122,6 +162,20 @@
     </div>
   </section>
 
+  <!-- ================= LEADERBOARD ================= -->
+  <section id="screen-leaderboard" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" id="lb-back" aria-label="Back">‹</button>
+      <span class="chip">Leaderboard</span>
+      <button class="btn" id="lb-refresh">Refresh</button>
+    </header>
+    <div class="summary">
+      <p class="sum-line">Best decision drill per player. Ten positions, ten seconds each, three points for the best answer.</p>
+      <ol class="lb-list" id="lb-list"></ol>
+      <p class="post-status" id="lb-status"></p>
+    </div>
+  </section>
+
   <!-- ================= PRINCIPLES ================= -->
   <section id="screen-principles" class="screen">
     <header class="topbar">
@@ -129,47 +183,47 @@
       <span class="chip">The principles</span>
     </header>
     <article class="prose">
-      <h2>Attacking a set defence</h2>
-      <p>They lifted, they split, they are balanced and waiting. This is the position you asked about, and the first thing to accept is that <strong>your smash is not supposed to win the rally</strong>. The pair hitting down has the initiative; your job is to force a reply weak enough that your front player finishes it. Attack is a sequence, not a shot.</p>
+      <h2>Attacking when they have lifted and spread out</h2>
+      <p>They have lifted, they have spread out side-by-side, and they are balanced and waiting. The first thing to accept is that <strong>your smash is not supposed to win the rally</strong>. The pair hitting downwards has the advantage; your job is to force a reply weak enough that your partner at the net can finish it. Attacking is a sequence, not a single shot.</p>
       <ul>
-        <li><strong>The middle seam is the default.</strong> When both defenders are covering their outside lanes, the middle is the biggest gap — and a shuttle down the seam removes their angles and creates a moment of hesitation between them.</li>
-        <li><strong>The racket-side hip is the body target.</strong> For a right-hander that is the right hip, which sits on the <em>inside</em> of their body — so against a right-handed pair the body smash and the seam are nearly the same ball. Jamming there cramps the swing and forces a forehand/backhand decision they do not want.</li>
-        <li><strong>Placement beats pace.</strong> A half smash landing just inside the tramline does more damage than a full-pace smash hit straight at somebody's racket.</li>
-        <li><strong>Straight before cross.</strong> The cross smash is the longest ball on the court: it gives the defender the most time, gives you the least, and drags your front player out of the position that makes your attack work.</li>
-        <li><strong>From a deep corner, do not smash.</strong> Off balance and behind the shuttle, a full smash arrives slow and flat — exactly what a set defence wants. Half smash or drop, keep the attack, get your feet back.</li>
-        <li><strong>Change the tempo, not the pace.</strong> The third smash in a row is the one they are grooved for. That is when the sliced drop into a front corner is worth more than anything hit hard.</li>
-        <li><strong>Hit where the defender just left.</strong> When one of them comes forward, the hole behind them is open for exactly one shot. Take it.</li>
+        <li><strong>The gap between them is the default target.</strong> When they are each covering their own side, the middle is the biggest space — and a shuttle down the middle takes away their angles and creates a moment where neither is sure whose ball it is.</li>
+        <li><strong>Aim at the hip on their racket side.</strong> For a right-hander that is the right hip, which sits on the <em>inside</em> of their body — so against a right-handed pair, jamming the body and hitting the middle are almost the same ball. There is no room to swing there, and they have to choose forehand or backhand with no time to do it.</li>
+        <li><strong>Placement beats power.</strong> A three-quarter-power smash landing just inside the sideline does more damage than a full-power one hit straight at somebody's racket.</li>
+        <li><strong>Straight before diagonal.</strong> A smash played diagonally is the longest shot on the court: it gives the defender the most time, gives you the least, and drags your partner away from the net, which is the position that makes your attack work at all.</li>
+        <li><strong>From a back corner, do not smash.</strong> Off balance and not properly behind the shuttle, a full smash arrives slow and flat — exactly what a settled defence wants. Play three-quarter power or a drop, keep the attack, and get your feet back.</li>
+        <li><strong>Change the speed, not the power.</strong> The third smash in a row is the one they are ready for. That is when a sliced drop into a front corner is worth more than anything hit hard.</li>
+        <li><strong>Hit where the player just left.</strong> When one of them comes forward, the space behind them is open for exactly one shot. Take it.</li>
       </ul>
 
       <h2>Defending the smash</h2>
-      <p>The trigger is simple and it is shared: <strong>lift, release the net, split, and be balanced before their racket contacts the shuttle</strong>. It is not a memorised clockwise rotation — it is a habit both players run at the same moment.</p>
+      <p>The habit is simple and both of you run it at once: <strong>lift, leave the net, spread out, and be balanced before their racket meets the shuttle</strong>. It is not a rotation to memorise — it is a shared trigger.</p>
       <ul>
-        <li><strong>The straight block is the backbone.</strong> Shortest distance, least that can go wrong, and if it is tight they cannot hit down off it.</li>
-        <li><strong>The push into the mid-court is the shot that breaks them.</strong> They are in front-and-back, so the space behind their net player is the largest hole on their court. A flat push into it forces a lift and flips the rally — this is the professional answer, not just survival.</li>
-        <li><strong>The cross block is the most intercepted shot in doubles.</strong> It travels slowly through exactly the zone their front player is standing in.</li>
-        <li><strong>Drive only when you have height.</strong> Against a steep smash you will be contacting below the tape, and the shuttle goes straight up. Against a slow, flat smash from the baseline, drive it down the line and you have taken the attack.</li>
-        <li><strong>Body smashes go on the backhand.</strong> Racket up and in front, thumb behind the grip, short punch, no swing. A jammed defender who tries to swing pops it up.</li>
-        <li><strong>Lift deep, or not at all.</strong> A lift keeps you defending; a short lift makes their next smash steeper. Use it when you are stretched, not by default.</li>
+        <li><strong>Taking the pace off, straight back, is the backbone.</strong> Shortest distance, least that can go wrong, and if it lands tight to the net they cannot hit down off it.</li>
+        <li><strong>The flat shot into the middle of their court is what actually breaks them.</strong> They are in a front-and-back shape, so the space behind their net player is the biggest empty area on their court. A firm flat shot into it forces a lift and flips the rally — this is the shot good players use, not just survival.</li>
+        <li><strong>Playing it diagonally across the net is the most intercepted shot in doubles.</strong> It travels slowly through exactly the area their net player is standing in.</li>
+        <li><strong>Only hit back flat when you have the height.</strong> Against a steep smash you are contacting below the top of the net and the shuttle goes straight up. Against a slow, flat smash from the baseline, hit it back flat down the line and you have taken the attack.</li>
+        <li><strong>Take body smashes on the backhand.</strong> Racket up and in front, thumb behind the grip, short punch, no swing. A jammed player who tries to swing pops it up.</li>
+        <li><strong>Lift deep, or not at all.</strong> A lift keeps you defending; a short one makes their next smash steeper. Use it when you are stretched, not as a default.</li>
       </ul>
 
-      <h2>Shape</h2>
+      <h2>Where to stand</h2>
       <ul>
-        <li><strong>Side-by-side to defend, front-and-back to attack.</strong> Two players in a line cannot cover the width against a pair hitting down; two players side by side cannot finish a rally.</li>
-        <li><strong>The one who lifted takes their own side.</strong> They retreat down the line of their lift, the partner balances into the other half.</li>
-        <li><strong>The front player follows the line of the smash.</strong> The straight block is the most likely reply to any smash — stand on it before it is played.</li>
-        <li><strong>Both defenders move as one.</strong> Side-by-side is not two statues; when the shuttle goes to one side, the whole pair slides that way and the gap between you never opens.</li>
-        <li><strong>Follow a good block in.</strong> The player who blocks takes the net, the partner slides behind. A block you admire from the mid-court is a block you wasted.</li>
+        <li><strong>Side-by-side to defend, one-in-front-of-the-other to attack.</strong> Two players in a line cannot cover the width against a pair hitting down; two players side-by-side cannot finish a rally.</li>
+        <li><strong>Whoever lifted takes their own side.</strong> They back away down the line of their own lift, and the partner takes the other half.</li>
+        <li><strong>The net player follows the line of the smash.</strong> The most likely reply to any smash comes straight back down the same line — stand on it before it is played.</li>
+        <li><strong>Both defenders move as one.</strong> Side-by-side is not two people standing still; when the shuttle goes to one side, the whole pair slides that way and the gap between you never opens.</li>
+        <li><strong>Follow a good defensive shot forward.</strong> Whoever played it takes the net, the partner slides in behind. A good block admired from the middle of your own court is a good block wasted.</li>
       </ul>
 
-      <h2>Reading the hands</h2>
+      <h2>Left-handers</h2>
       <p>A left-hander moves every target on the court, and most players never check. Facing you, a right-hander's racket is on your left; a left-hander's is on your right.</p>
       <ul>
-        <li><strong>Right-hander on your left + left-hander on your right = two backhands in the middle.</strong> The seam is the softest target in doubles and it is there all rally.</li>
-        <li><strong>Left-hander on your left + right-hander on your right = two forehands in the middle.</strong> Leave the seam alone and attack the lines.</li>
+        <li><strong>Right-hander on your left, left-hander on your right:</strong> both rackets point away from the middle, so the gap between them is covered by two backhands. That is the softest target in doubles and it is there all rally.</li>
+        <li><strong>Left-hander on your left, right-hander on your right:</strong> both rackets point into the middle. Leave the gap alone and attack the sidelines.</li>
       </ul>
 
       <h2>What this trainer can and cannot do</h2>
-      <p>It builds recognition and decision speed — seeing the shape and knowing the answer before the shuttle arrives. That is genuinely half the problem, and it is the half you can train on a phone. The other half is your body producing the shot under pressure, and that only comes from multi-shuttle feeds and half-court drills with a partner. Use this to know what you are trying to do; use the court to make it automatic.</p>
+      <p>It builds recognition and decision speed — seeing the shape and knowing the answer before the shuttle arrives. That is genuinely half the problem, and it is the half you can train on a phone. The other half is your body producing the shot under pressure, and that only comes from feeding drills and half-court practice with a partner. Use this to know what you are trying to do; use the court to make it automatic.</p>
 
       <h2>Sources</h2>
       <ul class="sources">
@@ -185,8 +239,10 @@
 
 </div>
 
+<script src="config.js"></script>
 <script src="tactics.js"></script>
 <script src="court.js"></script>
+<script src="leaderboard.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

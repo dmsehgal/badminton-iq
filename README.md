@@ -40,6 +40,66 @@ Every answer is graded *Best / Solid / Risky / Punished* with the reasoning, the
 consequence animated on the court, the coached answer when you miss it, and a one-line principle
 to take to training. The **Principles** page collects the whole model in one place with sources.
 
+**Targets are numbered, not named.** Tap a number to place your shot, and the coaching afterwards
+refers to the same number — so there is never any confusion about whose left is whose. The
+language avoids court jargon throughout, and the home screen has a short glossary for the few
+terms that are genuinely worth knowing.
+
+## Leaderboard
+
+Drill scores can be posted to a shared board. It is off until `config.js` has a Supabase project
+in it; with the fields empty the trainer works exactly as it does otherwise and the board is
+hidden.
+
+Only decision-drill scores are eligible — same ten positions' worth of questions, same clock, so
+they are comparable. Chapter runs are untimed and replayable, so they are not.
+
+**Setting it up**
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In the SQL editor, run:
+
+   ```sql
+   create table public.scores (
+     id         uuid primary key default gen_random_uuid(),
+     name       text        not null check (char_length(trim(name)) between 1 and 24),
+     pct        int         not null check (pct between 0 and 100),
+     points     int         not null check (points >= 0),
+     total      int         not null check (total > 0),
+     created_at timestamptz not null default now()
+   );
+
+   alter table public.scores enable row level security;
+
+   create policy "anyone can read the board"
+     on public.scores for select using (true);
+
+   -- insert only, and the numbers have to make sense
+   create policy "anyone can add a score"
+     on public.scores for insert with check (
+       char_length(trim(name)) between 1 and 24
+       and pct between 0 and 100
+       and points >= 0 and points <= total
+       and total between 1 and 100
+     );
+
+   create index scores_rank_idx on public.scores (pct desc, points desc, created_at asc);
+   ```
+
+   There is deliberately no update or delete policy, so with row level security on, nobody can
+   change or remove a posted score — only read the board and add to it.
+
+3. Put the project URL and the anon (publishable) key into `config.js` and push.
+
+Both values are meant to live in client-side code and are safe to commit. What stops abuse is the
+table's access rules, not secrecy.
+
+**What it is not:** tamper-proof. Anyone who opens the browser console can post a score they did
+not earn — the rules above constrain the shape of a score, not its honesty. That is the right
+trade for a board you share with friends; it would be the wrong trade for anything that mattered.
+
+The board shows one row per player — everyone's personal best, not every attempt.
+
 ## How the tactics model works
 
 Everything lives in `tactics.js`, so scenarios and grading can be edited without touching engine code.
@@ -59,12 +119,20 @@ grades: {
 }
 ```
 
+Targets are numbered automatically, sorted into reading order across the picture, and the
+coaching text refers to them with `{zoneId}` placeholders that resolve to those numbers when
+displayed. That means the words can never drift out of step with the diagram, however the targets
+are reordered or renumbered.
+
 Body targets are declared as `{ bodyOf: 0 }` and resolved against that defender's racket hand —
 facing you, a right-hander's racket side is on your left, a left-hander's is on your right. That
 one detail is why the body smash and the middle seam are nearly the same ball against a
 right-handed pair, and why they are not against a mixed one.
 
-A load-time validator warns in the console if any allowed shot is missing grade coverage.
+A load-time validator runs on every page load and warns in the console if a shot is missing grade
+coverage, if a grade or a sentence names a target that does not exist, or if the designated best
+answer has no grade. Content mistakes surface immediately rather than as a wrong lesson months
+later.
 
 ### Adding a position
 
@@ -94,11 +162,13 @@ The grading model is built on these:
 ## Files
 
 ```
-index.html    screens and the principles reference
-style.css     dark theme, mobile-first
-tactics.js    court constants, shot vocabulary, scenarios, grader
-court.js      top-down canvas renderer and the world/screen transform
-app.js        screen flow, scoring, drill timer, localStorage
+index.html      screens, glossary and the principles reference
+style.css       dark theme, mobile-first
+config.js       Supabase project values for the leaderboard (empty = leaderboard off)
+tactics.js      court constants, shot vocabulary, scenarios, grader, validator
+court.js        top-down canvas renderer and the world/screen transform
+leaderboard.js  Supabase REST client, fails soft if unreachable
+app.js          screen flow, scoring, drill timer, localStorage
 ```
 
 No dependencies, no build step, no external assets — the court and every marker are drawn on a
