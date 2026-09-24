@@ -15,6 +15,18 @@ const PASS_PCT = 60;
    public repository, so it is a convenience, not a secret. */
 const MASTER_KEY = 'deep mohan sehgal';
 
+/* Which hand the player holds the racket in. Everything they are shown is
+   drawn from their side of the racket, so this decides whether each position
+   is mirrored. Right is only the fallback for someone who has not said. */
+function playerHand() {
+  return store.hand === 'L' ? 'L' : 'R';
+}
+
+/* Names and explanations that mention a side have to agree with the picture. */
+function sided(text) {
+  return playerHand() === 'L' ? swapSides(text) : text;
+}
+
 const store = { scenarios: {}, drills: [] };
 
 function loadStore() {
@@ -96,7 +108,7 @@ function boards() {
 }
 function boardName(id) {
   const b = boards().find((x) => x.id === id);
-  return b ? b.name : id;
+  return b ? sided(b.name) : id;
 }
 
 /* ---------- screens ---------- */
@@ -126,8 +138,8 @@ function renderHome() {
         '" data-level="' + l.id + '" style="--i:' + i + '">' +
         '<span class="level-num">' + l.n + '</span>' +
         '<span class="level-body">' +
-          '<span class="level-name">' + esc(l.name) + '</span>' +
-          '<span class="level-blurb">' + esc(l.blurb) + '</span>' +
+          '<span class="level-name">' + esc(sided(l.name)) + '</span>' +
+          '<span class="level-blurb">' + esc(sided(l.blurb)) + '</span>' +
           '<span class="meter"><i style="width:' + (l.unlocked ? l.pct : 0) + '%"></i></span>' +
           '<span class="level-meta">' + meta + '</span>' +
         '</span>' +
@@ -163,7 +175,9 @@ function renderHome() {
     : 'Pass your first level to open the drill.';
 
   $('glossary-list').innerHTML = GLOSSARY.map((row) =>
-    '<dt>' + esc(row[0]) + '</dt><dd>' + esc(row[1]) + '</dd>').join('');
+    '<dt>' + esc(row[0]) + '</dt><dd>' + esc(sided(row[1])) + '</dd>').join('');
+  if (!app.howtoHand) app.howtoHand = $('howto-hand').innerHTML;
+  $('howto-hand').innerHTML = playerHand() === 'L' ? swapSides(app.howtoHand) : app.howtoHand;
 
   $('name-card').classList.toggle('hidden', !LB.enabled());
   renderNameCard();
@@ -243,14 +257,36 @@ function showPodiumSlide(i) {
    then on just show who is playing. */
 function renderNameCard(forceEdit) {
   const name = LB.savedName();
-  const editing = forceEdit || !name;
-  $('name-heading').textContent = editing ? 'Who is playing?' : 'Playing as ' + name;
+  const hand = playerHand();
+  const handWord = hand === 'L' ? 'left-handed' : 'right-handed';
+  // the hand is worth asking even with no leaderboard, since it changes the court
+  const editing = forceEdit || !name || !store.hand;
+
+  $('name-heading').textContent = editing
+    ? (name ? 'Which hand do you play with?' : 'Who is playing?')
+    : 'Playing as ' + name;
   $('name-sub').textContent = editing
-    ? 'Used to put your scores on the leaderboard. Stored on this device only.'
-    : 'Your scores go on the board under this name.';
+    ? (LB.enabled()
+        ? 'Your name goes on the leaderboard. Your playing hand decides which way round every position is shown.'
+        : 'Your playing hand decides which way round every position is shown.')
+    : handWord + ' · scores go on the board under this name';
+
   $('name-edit-row').classList.toggle('hidden', !editing);
+  $('name-row').classList.toggle('hidden', !LB.enabled());
   $('home-name-change').classList.toggle('hidden', editing);
   if (editing) $('home-name').value = name;
+
+  document.querySelectorAll('.hand-btn').forEach((b) => {
+    b.classList.toggle('on', store.hand === b.getAttribute('data-hand'));
+  });
+}
+
+function setHand(hand) {
+  if (store.hand === hand) return;
+  store.hand = hand;
+  saveStore();
+  Analytics.track('set_hand', { hand: hand });
+  renderHome();
 }
 
 function saveHomeName() {
@@ -323,7 +359,7 @@ function beginSession() {
    ============================================================ */
 function loadQuestion() {
   const id = app.queue[app.idx];
-  app.scn = SCENARIOS.find((s) => s.id === id);
+  app.scn = viewOf(SCENARIOS.find((s) => s.id === id), playerHand());
   app.pickedShot = app.scn.shots.length === 1 ? app.scn.shots[0] : null;
   app.pickedZone = null;
   app.result = null;
@@ -719,6 +755,7 @@ async function autoPost() {
     await LB.submit({
       name: name,
       mode: score.mode,
+      hand: playerHand(),
       pct: score.pct,
       points: score.points,
       total: score.total,
@@ -780,7 +817,28 @@ function lbRow(rank, name, big, small, mine) {
 async function openLeaderboard() {
   show('leaderboard');
   renderBoardTabs();
+  renderHandFilter();
   await renderLeaderboard();
+}
+
+const HAND_FILTERS = [
+  { id: 'all', name: 'Everyone' },
+  { id: 'R', name: 'Right-handed' },
+  { id: 'L', name: 'Left-handed' },
+];
+
+function renderHandFilter() {
+  if (!app.lbHand) app.lbHand = 'all';
+  $('lb-hand').innerHTML = HAND_FILTERS.map((h) =>
+    '<button class="lb-chip' + (h.id === app.lbHand ? ' on' : '') + '" data-hand="' +
+    h.id + '">' + esc(h.name) + '</button>').join('');
+  $('lb-hand').querySelectorAll('[data-hand]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      app.lbHand = btn.getAttribute('data-hand');
+      renderHandFilter();
+      renderLeaderboard();
+    });
+  });
 }
 
 function renderBoardTabs() {
@@ -809,10 +867,13 @@ async function renderLeaderboard() {
 
   setStatus('lb-status', 'Loading…');
   try {
-    const rows = board === 'overall' ? await LB.overall(20) : await LB.top(board, 20);
+    const hand = app.lbHand === 'all' ? null : app.lbHand;
+    const rows = board === 'overall' ? await LB.overall(20, hand) : await LB.top(board, 20, hand);
     if (!rows.length) {
       list.innerHTML = '';
-      setStatus('lb-status', 'Nobody has posted a score on this board yet. Be the first.');
+      setStatus('lb-status', hand
+        ? 'No ' + (hand === 'L' ? 'left' : 'right') + '-handed player has posted on this board yet.'
+        : 'Nobody has posted a score on this board yet. Be the first.');
       return;
     }
     list.innerHTML = rows.map((r, i) => {
@@ -875,6 +936,7 @@ function init() {
     store.scenarios = {};
     store.drills = [];
     store.master = false;
+    store.hand = null;
     saveStore();
     renderHome();
   });
@@ -887,6 +949,10 @@ function init() {
 
   window.addEventListener('resize', () => {
     if ($('screen-train').classList.contains('active')) { sizeCanvas(); draw(); }
+  });
+
+  document.querySelectorAll('.hand-btn').forEach((b) => {
+    b.addEventListener('click', () => setHand(b.getAttribute('data-hand')));
   });
 
   document.addEventListener('keydown', (e) => {

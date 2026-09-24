@@ -30,6 +30,21 @@ Then open `http://localhost:8000/`. Opening `index.html` directly works too. Pro
 | Shape and rotation | Positioning questions: splitting on the lift, arriving balanced, following a block in, and moving as a pair |
 | Reading the hands | How a left-hander moves every target, and the two mixed-handed shapes worth recognising |
 
+**Left-handers**
+
+The player is asked which hand they play with before they start. Choosing left mirrors every
+position: each player's place on court and their racket hand flip together, and the wording follows.
+
+Because it is a true reflection, every tactical relationship is preserved exactly — a defender's
+racket hip sits the same way relative to the middle, straight stays straight, across stays across.
+The trade-off, stated plainly: opponents' handedness mirrors too, so where a right-hander is told
+"both right-handed", a left-hander is told "both left-handed". The decisions being trained are
+identical; only the reflection differs. Training a left-hander specifically against right-handed
+opponents would mean re-deriving the answers, not reflecting them.
+
+Only a fixed list of phrases is treated as directional, because "the right idea" and "Right shot"
+use the word to mean correct and must never be flipped.
+
 **Levels**
 
 They open in order: score **60%** on a level and the next one unlocks. A level's standing comes
@@ -43,7 +58,22 @@ public, so anyone who reads `app.js` can find it — it is a convenience, not a 
 
 **Two ways to work**
 
-- **Levels** — untimed, in order, for learning the reads.
+- **Left-handers**
+
+The player is asked which hand they play with before they start. Choosing left mirrors every
+position: each player's place on court and their racket hand flip together, and the wording follows.
+
+Because it is a true reflection, every tactical relationship is preserved exactly — a defender's
+racket hip sits the same way relative to the middle, straight stays straight, across stays across.
+The trade-off, stated plainly: opponents' handedness mirrors too, so where a right-hander is told
+"both right-handed", a left-hander is told "both left-handed". The decisions being trained are
+identical; only the reflection differs. Training a left-hander specifically against right-handed
+opponents would mean re-deriving the answers, not reflecting them.
+
+Only a fixed list of phrases is treated as directional, because "the right idea" and "Right shot"
+use the word to mean correct and must never be flipped.
+
+**Levels** — untimed, in order, for learning the reads.
 - **Decision drill** — ten random positions, ten seconds each. Knowing the answer and finding it
   in under ten seconds are different skills, and only the second one shows up in a match.
 
@@ -86,6 +116,7 @@ already returns, which keeps the table to the single insert-only shape above.
      id         uuid primary key default gen_random_uuid(),
      name       text        not null check (char_length(trim(name)) between 1 and 24),
      mode       text        not null default 'drill' check (char_length(mode) between 1 and 32),
+     hand       text        not null default 'R' check (hand in ('R', 'L')),
      pct        int         not null check (pct between 0 and 100),
      points     int         not null check (points >= 0),
      total      int         not null check (total > 0),
@@ -109,18 +140,23 @@ already returns, which keeps the table to the single insert-only shape above.
    create index scores_rank_idx on public.scores (mode, pct desc, points desc, created_at asc);
    ```
 
-   The `mode` column names the board a score belongs to: `drill`, or a chapter id.
+   `mode` names the board a score belongs to: `drill`, or a level id. `hand` is the playing hand,
+   which the board can be filtered by.
 
    There is deliberately no update or delete policy, so with row level security on, nobody can
    change or remove a posted score — only read the board and add to it.
 
-   **If you created the table before per-chapter boards existed**, add the column instead of
-   recreating it:
+   **If your table predates per-level boards or the handedness filter**, add the columns instead
+   of recreating it:
 
    ```sql
    alter table public.scores
-     add column mode text not null default 'drill'
+     add column if not exists mode text not null default 'drill'
      check (char_length(mode) between 1 and 32);
+
+   alter table public.scores
+     add column if not exists hand text not null default 'R'
+     check (hand in ('R', 'L'));
 
    drop index if exists scores_rank_idx;
    create index scores_rank_idx on public.scores (mode, pct desc, points desc, created_at asc);

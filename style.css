@@ -387,3 +387,25 @@ body{
   .level .meter i{transition:none;}
   .level.shake{animation:none;}
 }
+
+/* ---------- which hand you play with ---------- */
+.hand-pick{margin-top:11px;}
+.hand-label{display:block;font-size:13.5px;color:var(--muted);margin-bottom:7px;}
+.hand-btns{display:flex;gap:8px;}
+.hand-btn{
+  flex:1 1 0;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;
+  transition:background .18s,border-color .18s,color .18s;
+}
+.hand-btn:hover{border-color:var(--accent);}
+.hand-btn.on{background:var(--accent);color:#06202b;border-color:transparent;}
+.hand-note{margin:9px 0 0;font-size:12.5px;color:var(--muted);line-height:1.45;}
+
+/* ---------- leaderboard handedness filter ---------- */
+.lb-filter{display:flex;gap:7px;flex-wrap:wrap;margin:-4px 0 14px;}
+.lb-chip{
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:5px 11px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;
+}
+.lb-chip:hover{border-color:var(--accent);color:var(--text);}
+.lb-chip.on{background:var(--panel-2);border-color:var(--accent);color:var(--accent);}

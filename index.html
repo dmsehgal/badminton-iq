@@ -34,13 +34,23 @@
       <div class="podium-dots" id="podium-dots"></div>
     </div>
 
-    <div class="card name-card hidden" id="name-card">
+    <div class="card name-card" id="name-card">
       <div class="card-body">
         <h3 id="name-heading">Who is playing?</h3>
         <p id="name-sub">Used to put your scores on the leaderboard. Stored on this device only.</p>
-        <div class="post-row" id="name-edit-row">
-          <input type="text" id="home-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
-          <button class="btn primary" id="home-name-save">Save</button>
+        <div id="name-edit-row">
+          <div class="post-row hidden" id="name-row">
+            <input type="text" id="home-name" maxlength="24" placeholder="Your name" autocomplete="nickname" spellcheck="false">
+            <button class="btn primary" id="home-name-save">Save</button>
+          </div>
+          <div class="hand-pick">
+            <span class="hand-label">Which hand do you play with?</span>
+            <div class="hand-btns">
+              <button class="hand-btn" data-hand="R">Right</button>
+              <button class="hand-btn" data-hand="L">Left</button>
+            </div>
+          </div>
+          <p class="hand-note">Choosing left mirrors every position, so the court is shown from your side of the racket.</p>
         </div>
       </div>
       <button class="btn hidden" id="home-name-change">Change</button>
@@ -71,7 +81,7 @@
           <li><b>You are always at the bottom</b>, looking towards the net. Every instruction is written from that view, so "your left" means the left of the picture.</li>
           <li><b>Targets are numbered.</b> Tap a number to place your shot. The coaching afterwards refers to those same numbers, so there is never any confusion about whose left is whose.</li>
           <li><b>A solid ring is a place on the court. A dashed ring is a target on a person</b> — aiming at the hip they hold their racket next to, so they have no room to swing.</li>
-          <li><b>The white pip on a player shows their racket side.</b> Facing you, a right-hander's racket is on your left. That single fact moves several targets, which is what the last level is about.</li>
+          <li id="howto-hand"><b>The white pip on a player shows their racket side.</b> Facing you, a right-hander's racket is on your left. That single fact moves several targets, which is what the last level is about.</li>
         </ul>
       </div>
     </details>
@@ -197,6 +207,7 @@
     </header>
     <div class="summary">
       <div class="lb-tabs" id="lb-tabs"></div>
+      <div class="lb-filter" id="lb-hand"></div>
       <p class="sum-line" id="lb-caption"></p>
       <ol class="lb-list" id="lb-list"></ol>
       <p class="post-status" id="lb-status"></p>

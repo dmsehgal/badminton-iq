@@ -74,6 +74,7 @@ const LB = {
       body: JSON.stringify({
         name: name,
         mode: entry.mode || 'drill',
+        hand: entry.hand === 'L' ? 'L' : 'R',
         pct: entry.pct,
         points: entry.points,
         total: entry.total,
@@ -83,8 +84,8 @@ const LB = {
       const detail = await res.text().catch(() => '');
       // the most likely cause on an existing project is the schema predating
       // per-board scores, so say that rather than echoing a Postgres error
-      if (/mode/i.test(detail) && /column|schema/i.test(detail)) {
-        throw new Error('The database is missing the "mode" column. Run the ALTER TABLE from the README, then try again.');
+      if (/column|schema/i.test(detail) && /mode|hand/i.test(detail)) {
+        throw new Error('The database is missing a column this version needs. Run the ALTER TABLE statements from the README, then try again.');
       }
       throw new Error('Could not post the score (' + res.status + '). ' + detail.slice(0, 140));
     }
@@ -100,11 +101,15 @@ const LB = {
      It is worked out here rather than in the database because the whole board
      is a few hundred rows at most, and doing it client-side keeps the table
      to the single insert-only shape the README documents. */
-  async overall(limit) {
+  handFilter(hand) {
+    return hand === 'R' || hand === 'L' ? '&hand=eq.' + hand : '';
+  },
+
+  async overall(limit, hand) {
     if (!this.enabled()) return [];
     const url = this.base() + '/rest/v1/scores' +
       '?select=name,mode,points,total,created_at' +
-      '&mode=neq.drill&order=created_at.asc&limit=2000';
+      '&mode=neq.drill' + this.handFilter(hand) + '&order=created_at.asc&limit=2000';
     const res = await this.request(url, {});
     if (!res.ok) throw new Error('Could not load the leaderboard (' + res.status + ').');
     const rows = await res.json();
@@ -136,11 +141,11 @@ const LB = {
       .slice(0, limit || 20);
   },
 
-  async top(mode, limit) {
+  async top(mode, limit, hand) {
     if (!this.enabled()) return [];
     const url = this.base() + '/rest/v1/scores' +
       '?select=name,pct,points,total,created_at' +
-      '&mode=eq.' + encodeURIComponent(mode || 'drill') +
+      '&mode=eq.' + encodeURIComponent(mode || 'drill') + this.handFilter(hand) +
       '&order=pct.desc,points.desc,created_at.asc&limit=300';
     const res = await this.request(url, {});
     if (!res.ok) throw new Error('Could not load the leaderboard (' + res.status + ').');

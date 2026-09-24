@@ -695,6 +695,101 @@ SCENARIOS.forEach((s) => {
   s.zones.forEach((zone, i) => { zone.n = i + 1; });
 });
 
+/* ============================================================
+   Left-handed view
+   A left-handed player stands on the other side of their own shots, so the
+   whole picture is reflected: every position, and every player's racket hand,
+   flips together. Because it is a true reflection, every tactical
+   relationship survives it — a defender's racket hip sits the same way
+   relative to the middle, straight stays straight, across stays across.
+
+   The consequence, stated plainly: opponents' handedness mirrors too, so
+   where a right-hander is told "both right-handed", a left-hander is told
+   "both left-handed". The decisions being trained are identical.
+   ============================================================ */
+
+/* Only these phrases are directional. "the right idea", "Right shot" and the
+   like use "right" to mean correct and must never be touched, which is why
+   this is a fixed list rather than a search for the word. Longer phrases come
+   first so the alternation cannot match a prefix of one of them. */
+const SIDE_SWAPS = [
+  ['right-handers', 'left-handers'], ['Right-handers', 'Left-handers'],
+  ['right-handed', 'left-handed'],   ['Right-handed', 'Left-handed'],
+  ['right-hander', 'left-hander'],   ['Right-hander', 'Left-hander'],
+  ['your right', 'your left'],       ['Your right', 'Your left'],
+  ['YOUR right', 'YOUR left'],
+  ['right hip', 'left hip'],         ['Right hip', 'Left hip'],
+  ['back right', 'back left'],       ['front right', 'front left'],
+  ['rear right', 'rear left'],       ['on the right', 'on the left'],
+];
+
+const SIDE_MAP = (function () {
+  const m = {};
+  SIDE_SWAPS.forEach((pair) => { m[pair[0]] = pair[1]; m[pair[1]] = pair[0]; });
+  return m;
+})();
+
+const SIDE_RE = new RegExp(
+  Object.keys(SIDE_MAP)
+    .sort((a, b) => b.length - a.length)
+    .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|'), 'g');
+
+/* One pass, so a phrase already swapped is never swapped back. */
+function swapSides(text) {
+  if (!text) return text;
+  return String(text).replace(SIDE_RE, (m) => SIDE_MAP[m] || m);
+}
+
+function mirrorX(x) { return COURT.W - x; }
+function mirrorPoint(p) { return p ? { x: mirrorX(p.x), y: p.y } : p; }
+
+function mirrorScenario(scn) {
+  const out = Object.assign({}, scn);
+  out.mirrored = true;
+  out.title = swapSides(scn.title);
+  out.brief = swapSides(scn.brief);
+  out.key = swapSides(scn.key);
+
+  out.you = mirrorPoint(scn.you);
+  out.partner = mirrorPoint(scn.partner);
+  out.contact = mirrorPoint(scn.contact);
+  out.opps = scn.opps.map((o) => ({ x: mirrorX(o.x), y: o.y, hand: o.hand === 'R' ? 'L' : 'R' }));
+
+  if (scn.incoming) {
+    out.incoming = Object.assign({}, scn.incoming, {
+      from: mirrorPoint(scn.incoming.from),
+      to: mirrorPoint(scn.incoming.to),
+    });
+  }
+
+  out.zones = scn.zones.map((zn) => {
+    const z2 = Object.assign({}, zn, { x: mirrorX(zn.x), label: swapSides(zn.label) });
+    if (zn.ownerX !== undefined) z2.ownerX = mirrorX(zn.ownerX);
+    return z2;
+  });
+  // reading order across the picture changes under reflection, so renumber
+  out.zones.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  out.zones.forEach((zn, i) => { zn.n = i + 1; });
+
+  out.grades = {};
+  Object.keys(scn.grades).forEach((k) => {
+    const g0 = scn.grades[k];
+    out.grades[k] = {
+      score: g0.score,
+      why: swapSides(g0.why),
+      outcome: swapSides(g0.outcome),
+      reply: mirrorPoint(g0.reply),
+    };
+  });
+  return out;
+}
+
+/* The one place the rest of the app asks for a scenario. */
+function viewOf(scn, hand) {
+  return hand === 'L' ? mirrorScenario(scn) : scn;
+}
+
 /* ---------- text with {zoneId} placeholders resolved to target numbers ---------- */
 function fmt(text, scn) {
   if (!text) return '';
